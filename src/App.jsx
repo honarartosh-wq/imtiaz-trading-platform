@@ -19,7 +19,8 @@ const ImtiazTradingPlatform = () => {
     password: '',
     confirmPassword: '',
     referralCode: '',
-    phone: ''
+    phone: '',
+    accountType: 'standard'
   });
   const [showRegister, setShowRegister] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -130,8 +131,9 @@ const ImtiazTradingPlatform = () => {
     }
 
     const accountNumber = generateAccountNumber();
-    toast.success(`Account created successfully!\nAccount: ${accountNumber}\nBranch: ${branchInfo.branchName}`, 5000);
-    setRegisterForm({ name: '', email: '', password: '', confirmPassword: '', referralCode: '', phone: '' });
+    const accountTypeLabel = registerForm.accountType === 'standard' ? 'Standard Account' : 'Business Account';
+    toast.success(`Account created successfully!\n\nAccount: ${accountNumber}\nType: ${accountTypeLabel}\nBranch: ${branchInfo.branchName}\n\nYou can now login with your credentials!`, 6000);
+    setRegisterForm({ name: '', email: '', password: '', confirmPassword: '', referralCode: '', phone: '', accountType: 'standard' });
     setShowRegister(false);
   };
 
@@ -200,11 +202,25 @@ const ImtiazTradingPlatform = () => {
               >
                 Login
               </Button>
-              <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 text-xs text-slate-300 space-y-1">
+              {/* Demo Credentials */}
+              <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 text-xs text-slate-300 space-y-2">
+                <div className="font-semibold text-blue-400 mb-2">🎯 Demo Accounts - Try Now!</div>
                 <div><strong>Manager:</strong> manager@imtiaz.com / manager123</div>
                 <div><strong>Admin:</strong> admin@imtiaz.com / admin123</div>
                 <div><strong>Standard Client:</strong> client@example.com / client123</div>
                 <div><strong>Business Client:</strong> business@example.com / business123</div>
+              </div>
+
+              {/* Platform Features */}
+              <div className="bg-emerald-600/10 border border-emerald-600/30 rounded-lg p-4 text-xs text-slate-300">
+                <div className="font-semibold text-emerald-400 mb-2">✨ Platform Features</div>
+                <div className="space-y-1">
+                  <div>• Real-time trading dashboard</div>
+                  <div>• Multi-currency support (EURUSD, XAUUSD, BTCUSD)</div>
+                  <div>• Wallet management & transfers</div>
+                  <div>• Transaction history & analytics</div>
+                  <div>• Standard & Business account types</div>
+                </div>
               </div>
             </div>
           ) : (
@@ -227,6 +243,44 @@ const ImtiazTradingPlatform = () => {
                 value={registerForm.phone}
                 onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })}
               />
+
+              {/* Account Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Account Type <span className="text-red-400">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRegisterForm({ ...registerForm, accountType: 'standard' })}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      registerForm.accountType === 'standard'
+                        ? 'border-emerald-500 bg-emerald-500/10'
+                        : 'border-slate-700 bg-slate-900 hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="font-semibold text-white mb-1">Standard</div>
+                      <div className="text-xs text-slate-400">Personal Trading</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegisterForm({ ...registerForm, accountType: 'business' })}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      registerForm.accountType === 'business'
+                        ? 'border-emerald-500 bg-emerald-500/10'
+                        : 'border-slate-700 bg-slate-900 hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="font-semibold text-white mb-1">Business</div>
+                      <div className="text-xs text-slate-400">Corporate Trading</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               <Input
                 type="text"
                 placeholder="Branch Referral Code"
@@ -254,9 +308,30 @@ const ImtiazTradingPlatform = () => {
               >
                 Create Account
               </Button>
+
+              {/* Branch Referral Codes */}
               <div className="bg-purple-600/10 border border-purple-600/30 rounded-lg p-4 text-xs text-slate-300">
-                <div><strong>MAIN001-REF</strong> - Main Branch</div>
-                <div><strong>DT002-REF</strong> - Downtown Branch</div>
+                <div className="font-semibold text-purple-400 mb-2">🏢 Available Branch Codes</div>
+                <div className="space-y-1">
+                  <div><strong>MAIN001-REF</strong> - Main Branch</div>
+                  <div><strong>DT002-REF</strong> - Downtown Branch</div>
+                  <div><strong>WEST003-REF</strong> - West Branch</div>
+                </div>
+              </div>
+
+              {/* Account Type Benefits */}
+              <div className="bg-slate-700/30 border border-slate-600/30 rounded-lg p-4 text-xs text-slate-300">
+                <div className="font-semibold text-slate-300 mb-2">💡 Account Types</div>
+                <div className="space-y-2">
+                  <div>
+                    <div className="font-semibold text-emerald-400">Standard Account:</div>
+                    <div className="text-slate-400">Perfect for individual traders</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-blue-400">Business Account:</div>
+                    <div className="text-slate-400">Advanced features for corporate trading</div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
