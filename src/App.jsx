@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ManagerDashboard from './components/dashboards/ManagerDashboard';
 import AdminDashboard from './components/dashboards/AdminDashboard';
 import ClientDashboard from './components/dashboards/ClientDashboard';
 import Input from './components/shared/Input';
 import Button from './components/shared/Button';
+import Spinner from './components/shared/Spinner';
 import { useToast } from './context/ToastContext';
 import { validateEmail, validatePassword, validatePasswordMatch, validateRequiredFields } from './utils/validation';
-import { generateAccountNumber } from './utils/helpers';
+import { login as apiLogin, register as apiRegister, getCurrentUser, getErrorMessage } from './services/api';
 
 // ==================== MAIN APP ====================
 const ImtiazTradingPlatform = () => {
@@ -24,6 +25,8 @@ const ImtiazTradingPlatform = () => {
   });
   const [showRegister, setShowRegister] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Mock branch data (would be fetched from backend in production)
   const mockBranches = {
@@ -80,21 +83,71 @@ const ImtiazTradingPlatform = () => {
     'WEST003-REF': { branchId: 'branch_003', branchName: 'West Branch', branchCode: 'WEST-003' }
   };
 
-  const handleLogin = () => {
+  // Check if user is already authenticated on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        try {
+          const userData = await getCurrentUser();
+          // Map backend user data to frontend format
+          setCurrentUser({
+            id: userData.id,
+            name: userData.name,
+            email: userData.email,
+            type: userData.role.toLowerCase(), // 'manager', 'admin', 'client'
+            branchId: userData.branch_id,
+            accountNumber: userData.account_number,
+            accountType: userData.account_type?.toLowerCase()
+          });
+        } catch (error) {
+          // Token invalid or expired, clear it
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+        }
+      }
+      setIsCheckingAuth(false);
+    };
+    checkAuth();
+  }, []);
+
+  const handleLogin = async () => {
     setLoginError('');
-    const user = mockUsers[loginForm.email];
-    if (!user) {
-      setLoginError('User not found');
-      return;
+    setIsLoading(true);
+
+    try {
+      // Call backend login API
+      const response = await apiLogin(loginForm.email, loginForm.password);
+
+      // Store tokens
+      localStorage.setItem('accessToken', response.access_token);
+      localStorage.setItem('refreshToken', response.refresh_token);
+
+      // Get user data
+      const userData = await getCurrentUser();
+
+      // Map backend user data to frontend format
+      setCurrentUser({
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        type: userData.role.toLowerCase(), // 'manager', 'admin', 'client'
+        branchId: userData.branch_id,
+        accountNumber: userData.account_number,
+        accountType: userData.account_type?.toLowerCase()
+      });
+
+      toast.success('Login successful!');
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      setLoginError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
-    if (user.password !== loginForm.password) {
-      setLoginError('Invalid password');
-      return;
-    }
-    setCurrentUser(user);
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     // Validate required fields
     const requiredValidation = validateRequiredFields(registerForm, ['name', 'email', 'password', 'confirmPassword', 'referralCode']);
     if (!requiredValidation.isValid) {
@@ -123,30 +176,65 @@ const ImtiazTradingPlatform = () => {
       return;
     }
 
-    // Validate referral code
-    const branchInfo = branchReferralCodes[registerForm.referralCode];
-    if (!branchInfo) {
-      toast.error('Invalid referral code. Please check and try again.');
-      return;
-    }
+    setIsLoading(true);
 
-    const accountNumber = generateAccountNumber();
-    const accountTypeLabel = registerForm.accountType === 'standard' ? 'Standard Account' : 'Business Account';
-    toast.success(`Account created successfully!\n\nAccount: ${accountNumber}\nType: ${accountTypeLabel}\nBranch: ${branchInfo.branchName}\n\nYou can now login with your credentials!`, 6000);
-    setRegisterForm({ name: '', email: '', password: '', confirmPassword: '', referralCode: '', phone: '', accountType: 'standard' });
-    setShowRegister(false);
+    try {
+      // Call backend register API
+      const response = await apiRegister(registerForm);
+
+      // Show success message
+      const accountTypeLabel = registerForm.accountType === 'standard' ? 'Standard Account' : 'Business Account';
+      toast.success(
+        `Account created successfully!\n\nAccount: ${response.account_number}\nType: ${accountTypeLabel}\n\nYou can now login with your credentials!`,
+        6000
+      );
+
+      // Reset form and switch to login
+      setRegisterForm({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        referralCode: '',
+        phone: '',
+        accountType: 'standard'
+      });
+      setShowRegister(false);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  // Handle logout - clear tokens and user state
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    setCurrentUser(null);
+    toast.info('Logged out successfully');
+  };
+
+  // Show loading spinner while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   // If user is logged in, show appropriate dashboard
   if (currentUser) {
     const userBranch = currentUser.branchId ? mockBranches[currentUser.branchId] : null;
     switch (currentUser.type) {
       case 'manager':
-        return <ManagerDashboard user={currentUser} onLogout={() => setCurrentUser(null)} />;
+        return <ManagerDashboard user={currentUser} onLogout={handleLogout} />;
       case 'admin':
-        return <AdminDashboard user={currentUser} branch={userBranch} onLogout={() => setCurrentUser(null)} />;
+        return <AdminDashboard user={currentUser} branch={userBranch} onLogout={handleLogout} />;
       case 'client':
-        return <ClientDashboard user={currentUser} branch={userBranch} onLogout={() => setCurrentUser(null)} />;
+        return <ClientDashboard user={currentUser} branch={userBranch} onLogout={handleLogout} />;
       default:
         return null;
     }
@@ -199,8 +287,9 @@ const ImtiazTradingPlatform = () => {
                 className="w-full"
                 variant="primary"
                 size="lg"
+                disabled={isLoading}
               >
-                Login
+                {isLoading ? 'Logging in...' : 'Login'}
               </Button>
               {/* Demo Credentials */}
               <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 text-xs text-slate-300 space-y-2">
@@ -305,8 +394,9 @@ const ImtiazTradingPlatform = () => {
                 className="w-full"
                 variant="primary"
                 size="lg"
+                disabled={isLoading}
               >
-                Create Account
+                {isLoading ? 'Creating Account...' : 'Create Account'}
               </Button>
 
               {/* Branch Referral Codes */}

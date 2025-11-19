@@ -27,3 +27,15 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Python (Backend)
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+backend/.Python
+backend/pip-log.txt
+backend/.env
+backend/*.db
+backend/*.sqlite3
