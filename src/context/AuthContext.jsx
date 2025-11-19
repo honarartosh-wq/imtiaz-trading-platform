@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState } from 'react';
 
 const AuthContext = createContext(null);
 
-// Demo users for testing
+// WARNING: Demo users for testing only - NEVER store credentials in frontend code in production
+// In production, use proper authentication with backend API and secure password handling
 const DEMO_USERS = [
   {
     id: 1,

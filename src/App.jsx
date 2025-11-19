@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { TrendingUp, Users, Shield, Building2, Lock, Mail, LogIn, UserPlus, Copy, CheckCircle, DollarSign, Activity, BarChart3, Clock, Download, Upload, Eye, EyeOff, Plus, X, AlertTriangle, Server, Settings, Zap, Globe, Edit2, Trash2, Phone, FileText, RefreshCw, Key } from 'lucide-react';
+import { TrendingUp, Users, Shield, Building2, Copy, CheckCircle, DollarSign, Activity, BarChart3, Clock, Download, Upload, Eye, EyeOff, Plus, X, AlertTriangle, Server, Settings, Zap, Globe, Edit2, Trash2, Phone, FileText, RefreshCw, Key } from 'lucide-react';
+
+// ==================== CONSTANTS ====================
+const TRADING_SYMBOLS = ['EURUSD', 'GBPUSD', 'USDJPY', 'XAUUSD', 'BTCUSD'];
+
+const DEFAULT_EXTRA_SPREAD = {
+  EURUSD: 0.5,
+  GBPUSD: 0.5,
+  USDJPY: 0.5,
+  XAUUSD: 2.0,
+  BTCUSD: 10.0
+};
 
 // ==================== MAIN APP ====================
 const ImtiazTradingPlatform = () => {
@@ -15,6 +26,8 @@ const ImtiazTradingPlatform = () => {
     'branch_002': { id: 'branch_002', name: 'Downtown Branch', code: 'DT-002', logo: '' }
   };
 
+  // WARNING: Demo credentials for testing only - NEVER store credentials in frontend code in production
+  // In production, use proper authentication with backend API and secure password handling
   const mockUsers = {
     'manager@imtiaz.com': { password: 'manager123', type: 'manager', id: 'mgr_001', name: 'John Manager', email: 'manager@imtiaz.com' },
     'admin@imtiaz.com': { password: 'admin123', type: 'admin', id: 'admin_001', name: 'Sarah Admin', email: 'admin@imtiaz.com', branchId: 'branch_001', branchName: 'Main Branch', branchCode: 'MAIN-001', referralCode: 'MAIN001-REF' },
@@ -82,7 +95,6 @@ const ImtiazTradingPlatform = () => {
                 <div><strong>Admin:</strong> admin@imtiaz.com / admin123</div>
                 <div><strong>Standard Client:</strong> client@example.com / client123</div>
                 <div><strong>Business Client:</strong> business@example.com / business123</div>
-                <div><strong>Client:</strong> client@example.com / client123</div>
               </div>
             </div>
           ) : (
