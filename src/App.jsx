@@ -2,9 +2,15 @@ import React, { useState } from 'react';
 import ManagerDashboard from './components/dashboards/ManagerDashboard';
 import AdminDashboard from './components/dashboards/AdminDashboard';
 import ClientDashboard from './components/dashboards/ClientDashboard';
+import Input from './components/shared/Input';
+import Button from './components/shared/Button';
+import { useToast } from './context/ToastContext';
+import { validateEmail, validatePassword, validatePasswordMatch, validateRequiredFields } from './utils/validation';
+import { generateAccountNumber } from './utils/helpers';
 
 // ==================== MAIN APP ====================
 const ImtiazTradingPlatform = () => {
+  const toast = useToast();
   const [currentUser, setCurrentUser] = useState(null);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [registerForm, setRegisterForm] = useState({
@@ -88,21 +94,43 @@ const ImtiazTradingPlatform = () => {
   };
 
   const handleRegister = () => {
-    if (registerForm.password !== registerForm.confirmPassword) {
-      alert('Passwords do not match!');
-      return;
-    }
-    if (!registerForm.referralCode) {
-      alert('Branch referral code is required!');
-      return;
-    }
-    const branchInfo = branchReferralCodes[registerForm.referralCode];
-    if (!branchInfo) {
-      alert('Invalid referral code!');
+    // Validate required fields
+    const requiredValidation = validateRequiredFields(registerForm, ['name', 'email', 'password', 'confirmPassword', 'referralCode']);
+    if (!requiredValidation.isValid) {
+      toast.error(requiredValidation.error);
       return;
     }
 
-    alert(`✅ Account Created!\n\nName: ${registerForm.name}\nEmail: ${registerForm.email}\nAccount: ACC-${Math.floor(10000 + Math.random() * 90000)}\nBranch: ${branchInfo.branchName}`);
+    // Validate email
+    const emailValidation = validateEmail(registerForm.email);
+    if (!emailValidation.isValid) {
+      toast.error(emailValidation.error);
+      return;
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(registerForm.password);
+    if (!passwordValidation.isValid) {
+      toast.error(passwordValidation.error);
+      return;
+    }
+
+    // Validate passwords match
+    const passwordMatchValidation = validatePasswordMatch(registerForm.password, registerForm.confirmPassword);
+    if (!passwordMatchValidation.isValid) {
+      toast.error(passwordMatchValidation.error);
+      return;
+    }
+
+    // Validate referral code
+    const branchInfo = branchReferralCodes[registerForm.referralCode];
+    if (!branchInfo) {
+      toast.error('Invalid referral code. Please check and try again.');
+      return;
+    }
+
+    const accountNumber = generateAccountNumber();
+    toast.success(`Account created successfully!\nAccount: ${accountNumber}\nBranch: ${branchInfo.branchName}`, 5000);
     setRegisterForm({ name: '', email: '', password: '', confirmPassword: '', referralCode: '', phone: '' });
     setShowRegister(false);
   };
@@ -151,31 +179,27 @@ const ImtiazTradingPlatform = () => {
 
           {!showRegister ? (
             <div className="space-y-4">
-              <input
+              <Input
                 type="email"
                 placeholder="Email"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white"
                 value={loginForm.email}
                 onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                error={loginError}
               />
-              <input
+              <Input
                 type="password"
                 placeholder="Password"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white"
                 value={loginForm.password}
                 onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
               />
-              {loginError && (
-                <div className="bg-red-600/10 border border-red-600/30 rounded-lg p-3 text-red-400 text-sm">
-                  {loginError}
-                </div>
-              )}
-              <button
+              <Button
                 onClick={handleLogin}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-semibold"
+                className="w-full"
+                variant="primary"
+                size="lg"
               >
                 Login
-              </button>
+              </Button>
               <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 text-xs text-slate-300 space-y-1">
                 <div><strong>Manager:</strong> manager@imtiaz.com / manager123</div>
                 <div><strong>Admin:</strong> admin@imtiaz.com / admin123</div>
@@ -185,54 +209,51 @@ const ImtiazTradingPlatform = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <input
+              <Input
                 type="text"
                 placeholder="Full Name"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white"
                 value={registerForm.name}
                 onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
               />
-              <input
+              <Input
                 type="email"
                 placeholder="Email"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white"
                 value={registerForm.email}
                 onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
               />
-              <input
+              <Input
                 type="tel"
                 placeholder="Phone"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white"
                 value={registerForm.phone}
                 onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })}
               />
-              <input
+              <Input
                 type="text"
                 placeholder="Branch Referral Code"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white uppercase"
+                className="uppercase"
                 value={registerForm.referralCode}
                 onChange={(e) => setRegisterForm({ ...registerForm, referralCode: e.target.value.toUpperCase() })}
               />
-              <input
+              <Input
                 type="password"
                 placeholder="Password"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white"
                 value={registerForm.password}
                 onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
               />
-              <input
+              <Input
                 type="password"
                 placeholder="Confirm Password"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white"
                 value={registerForm.confirmPassword}
                 onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
               />
-              <button
+              <Button
                 onClick={handleRegister}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-semibold"
+                className="w-full"
+                variant="primary"
+                size="lg"
               >
                 Create Account
-              </button>
+              </Button>
               <div className="bg-purple-600/10 border border-purple-600/30 rounded-lg p-4 text-xs text-slate-300">
                 <div><strong>MAIN001-REF</strong> - Main Branch</div>
                 <div><strong>DT002-REF</strong> - Downtown Branch</div>
