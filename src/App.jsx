@@ -8,12 +8,12 @@ import Spinner from './components/shared/Spinner';
 import { useToast } from './context/ToastContext';
 import { validateEmail, validatePassword, validatePasswordMatch, validateRequiredFields } from './utils/validation';
 import { login as apiLogin, register as apiRegister, getCurrentUser, getErrorMessage } from './services/api';
-import { useDesktopInfo } from './hooks/useTauri';
+import { usePlatformInfo } from './hooks/usePlatform';
 
 // ==================== MAIN APP ====================
 const ImtiazTradingPlatform = () => {
   const toast = useToast();
-  const { isTauri, platform, version } = useDesktopInfo();
+  const platformInfo = usePlatformInfo();
   const [currentUser, setCurrentUser] = useState(null);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [registerForm, setRegisterForm] = useState({
@@ -251,12 +251,25 @@ const ImtiazTradingPlatform = () => {
             Imtiaz Trading
           </div>
           <p className="text-slate-400">Professional Trading Platform</p>
-          {isTauri && (
+
+          {/* Desktop App Badge */}
+          {platformInfo.isDesktop && (
             <div className="mt-3 inline-flex items-center px-3 py-1.5 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-300 text-xs font-medium">
               <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              Desktop App {version !== 'unknown' && `v${version}`}
+              Desktop App {platformInfo.appVersion !== 'unknown' && platformInfo.appVersion !== 'web' && `v${platformInfo.appVersion}`}
+            </div>
+          )}
+
+          {/* Mobile App Badge */}
+          {platformInfo.isMobile && (
+            <div className="mt-3 inline-flex items-center px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 text-xs font-medium">
+              <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              {platformInfo.mobile.isIOS ? 'iOS App' : platformInfo.mobile.isAndroid ? 'Android App' : 'Mobile App'}
+              {platformInfo.appVersion !== 'web' && ` v${platformInfo.appVersion}`}
             </div>
           )}
         </div>

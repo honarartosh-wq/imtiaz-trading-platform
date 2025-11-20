@@ -17,7 +17,7 @@ export default defineConfig({
 
   // to make use of `TAURI_DEBUG` and other env variables
   // https://tauri.app/v1/api/config#buildconfig.beforedevcommand
-  envPrefix: ['VITE_', 'TAURI_'],
+  envPrefix: ['VITE_', 'TAURI_', 'CAPACITOR_'],
 
   build: {
     // Tauri supports es2021
@@ -26,5 +26,16 @@ export default defineConfig({
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
-  },
+    // Configure Rollup to handle conditional imports
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Suppress warnings about unresolved Tauri imports
+        // These are loaded dynamically only when running in Tauri
+        if (warning.code === 'UNRESOLVED_IMPORT' && warning.exporter?.includes('@tauri-apps')) {
+          return;
+        }
+        warn(warning);
+      }
+    }
+  }
 })

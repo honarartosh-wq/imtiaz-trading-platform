@@ -2,7 +2,7 @@
 
 Complete multi-branch trading platform with Manager, Admin, and Client dashboards.
 
-Available as both **Web Application** and **Native Desktop App** (Windows, macOS, Linux).
+Available as **Web Application**, **Native Desktop App** (Windows, macOS, Linux), and **Native Mobile App** (iOS, Android).
 
 ## Features
 - Multi-role authentication
@@ -11,7 +11,8 @@ Available as both **Web Application** and **Native Desktop App** (Windows, macOS
 - Liquidity provider integration
 - Branch referral system
 - **Native Desktop Application** with Tauri
-- Desktop-specific features (notifications, system tray, native dialogs)
+- **Native Mobile Application** with Capacitor
+- Platform-specific features (notifications, haptics, native dialogs, safe areas)
 
 ## Quick Start
 
@@ -27,12 +28,22 @@ npm install
 npm run tauri:dev
 ```
 
-See [DESKTOP_APP.md](./DESKTOP_APP.md) for complete desktop app documentation.
+### Mobile Application
+```bash
+npm install
+npm run build
+npm run mobile:sync
+npm run mobile:ios      # Opens in Xcode
+npm run mobile:android  # Opens in Android Studio
+```
+
+See [MOBILE_APP.md](./MOBILE_APP.md) for complete mobile app documentation.
 
 ## Documentation
 
 - **[QUICKSTART.md](./QUICKSTART.md)** - Full-stack setup guide
-- **[DESKTOP_APP.md](./DESKTOP_APP.md)** - Desktop application guide (NEW!)
+- **[DESKTOP_APP.md](./DESKTOP_APP.md)** - Desktop application guide
+- **[MOBILE_APP.md](./MOBILE_APP.md)** - Mobile application guide (NEW!)
 - **[backend/SETUP.md](./backend/SETUP.md)** - Backend setup instructions
 
 ## Demo Credentials
@@ -42,10 +53,15 @@ See [DESKTOP_APP.md](./DESKTOP_APP.md) for complete desktop app documentation.
 
 ## Platform Support
 
-| Platform | Web App | Desktop App |
-|----------|---------|-------------|
-| Windows  | ✅      | ✅          |
-| macOS    | ✅      | ✅          |
-| Linux    | ✅      | ✅          |
-| iOS      | ✅      | ❌          |
-| Android  | ✅      | ❌          |
+| Platform | Web App | Desktop App | Mobile App |
+|----------|---------|-------------|------------|
+| Windows  | ✅      | ✅          | ❌         |
+| macOS    | ✅      | ✅          | ❌         |
+| Linux    | ✅      | ✅          | ❌         |
+| iOS      | ✅      | ❌          | ✅         |
+| Android  | ✅      | ❌          | ✅         |
+
+**Legend:**
+- **Web App**: Runs in browser on any platform
+- **Desktop App**: Native Windows/macOS/Linux application (Tauri)
+- **Mobile App**: Native iOS/Android application (Capacitor)
