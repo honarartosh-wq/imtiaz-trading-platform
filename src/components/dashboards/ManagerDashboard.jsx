@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { 
   LayoutDashboard, 
   Users, 
@@ -14,8 +13,7 @@ import {
   UserPlus
 } from 'lucide-react';
 
-const ManagerDashboard = () => {
-  const { user, logout } = useAuth();
+const ManagerDashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const stats = {
@@ -48,7 +46,7 @@ const ManagerDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-white">Manager Dashboard</h1>
-              <p className="text-gray-400 text-sm">Welcome back, {user.name}</p>
+              <p className="text-gray-400 text-sm">Welcome back, {user?.name || user?.email || 'Manager'}</p>
             </div>
             <div className="flex items-center gap-4">
               <button className="p-2 text-gray-400 hover:text-white transition-colors">
@@ -58,7 +56,7 @@ const ManagerDashboard = () => {
                 <Settings className="w-5 h-5" />
               </button>
               <button
-                onClick={logout}
+                onClick={onLogout}
                 className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
                 <LogOut className="w-4 h-4" />

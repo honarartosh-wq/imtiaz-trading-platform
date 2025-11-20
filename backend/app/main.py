@@ -49,6 +49,24 @@ async def health_check():
     return {"status": "healthy"}
 
 
+@app.post("/api/init-database")
+async def initialize_database():
+    """One-time database initialization endpoint. Remove after use."""
+    try:
+        from app.init_db import init_database
+        init_database()
+        return {
+            "status": "success",
+            "message": "Database initialized with demo data",
+            "warning": "Remove this endpoint after initialization"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

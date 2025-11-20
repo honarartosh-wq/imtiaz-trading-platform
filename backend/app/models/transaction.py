@@ -57,6 +57,9 @@ class Transaction(Base):
     # Relationships
     user = relationship("User", foreign_keys=[user_id], back_populates="transactions")
     account = relationship("Account", back_populates="transactions")
+    from_user = relationship("User", foreign_keys=[from_user_id])
+    to_user = relationship("User", foreign_keys=[to_user_id])
+    performed_by = relationship("User", foreign_keys=[performed_by_id])
 
     def __repr__(self):
         return f"<Transaction {self.transaction_type} - {self.amount} - {self.status}>"
