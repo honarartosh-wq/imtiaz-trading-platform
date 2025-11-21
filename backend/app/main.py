@@ -53,8 +53,8 @@ async def health_check():
 async def initialize_database():
     """One-time database initialization endpoint. Remove after use."""
     try:
-        from app.init_db import init_database
-        init_database()
+        from app.init_db import init_db
+        init_db()
         return {
             "status": "success",
             "message": "Database initialized with demo data",
