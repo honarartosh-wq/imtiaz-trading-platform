@@ -1,5 +1,25 @@
 {
   "appId": "com.imtiaz.trading",
   "appName": "Imtiaz Trading",
-  "webDir": "dist"
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0f172a",
+      "showSpinner": false
+    }
+  },
+  "android": {
+    "buildOptions": {
+      "keystorePath": "imtiaz-trading.jks",
+      "keystoreAlias": "imtiaz-trading-key"
+    }
+  },
+  "ios": {
+    "scheme": "Imtiaz Trading"
+  }
 }

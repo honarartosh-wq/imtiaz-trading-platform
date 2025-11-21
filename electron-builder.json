@@ -1,0 +1,72 @@
+{
+  "appId": "com.imtiaz.trading",
+  "productName": "Imtiaz Trading Platform",
+  "copyright": "Copyright © 2024 Imtiaz Trading",
+  "directories": {
+    "output": "build-desktop",
+    "buildResources": "build-resources"
+  },
+  "files": [
+    "dist/**/*",
+    "electron-main.js",
+    "electron-preload.js",
+    "package.json"
+  ],
+  "extraMetadata": {
+    "main": "electron-main.js"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64", "ia32"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "build-resources/icon.png",
+    "publisherName": "Imtiaz Trading",
+    "verifyUpdateCodeSignature": false
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Imtiaz Trading",
+    "installerIcon": "build-resources/icon.ico",
+    "uninstallerIcon": "build-resources/icon.ico"
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "icon": "build-resources/icon.icns",
+    "category": "public.app-category.finance",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "entitlements": "build-resources/entitlements.mac.plist",
+    "entitlementsInherit": "build-resources/entitlements.mac.plist"
+  },
+  "dmg": {
+    "contents": [
+      {
+        "x": 130,
+        "y": 220
+      },
+      {
+        "x": 410,
+        "y": 220,
+        "type": "link",
+        "path": "/Applications"
+      }
+    ]
+  },
+  "linux": {
+    "target": ["AppImage", "deb", "rpm"],
+    "icon": "build-resources/icons",
+    "category": "Finance",
+    "synopsis": "Professional Trading Platform",
+    "description": "Imtiaz Trading Platform - Professional trading platform with MetaTrader integration"
+  }
+}
