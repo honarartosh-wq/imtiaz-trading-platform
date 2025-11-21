@@ -30,12 +30,13 @@ Thumbs.db
 
 # Python (Backend)
 backend/venv/
-backend/__pycache__/
-backend/*.pyc
-backend/*.pyo
-backend/*.pyd
-backend/.Python
-backend/pip-log.txt
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
 backend/.env
 backend/*.db
 backend/*.sqlite3
