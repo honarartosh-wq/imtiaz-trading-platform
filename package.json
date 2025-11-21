@@ -12,6 +12,7 @@
     "build:prod": "vite build --mode production",
     "build:staging": "vite build --mode staging",
     "preview": "vite preview",
+    "start": "serve dist -l $PORT",
     "electron:dev": "NODE_ENV=development electron .",
     "electron:build": "npm run build:prod && electron-builder",
     "electron:build:win": "npm run build:prod && electron-builder --win",
@@ -35,7 +36,8 @@
     "axios": "^1.13.2",
     "lucide-react": "^0.263.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "serve": "^14.2.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
