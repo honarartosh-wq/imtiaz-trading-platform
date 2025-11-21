@@ -1,0 +1,64 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+.pnpm-debug.log
+
+# Build cache
+.cache
+node_modules/.cache
+.vite
+dist
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# CI/CD
+.github
+
+# Documentation
+*.md
+!README.md
+
+# Build outputs
+build
+build-desktop
+out
+
+# Mobile
+android/app/build
+android/.gradle
+ios/App/build
+ios/App/Pods
+
+# Electron
+electron-builder.json
+electron-main.js
+electron-preload.js
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+backend
+
+# Misc
+.prettierrc
+.eslintrc
