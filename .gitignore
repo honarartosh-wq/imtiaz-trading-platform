@@ -5,6 +5,32 @@ package-lock.json
 # Build outputs
 dist/
 build/
+build-desktop/
+
+# Electron
+out/
+*.AppImage
+*.deb
+*.rpm
+*.dmg
+*.exe
+*.snap
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+android/app/build/
+android/app/release/
+android/.gradle/
+android/local.properties
+
+# iOS
+ios/App/build/
+ios/App/Pods/
+*.ipa
+*.xcarchive
 
 # Environment variables
 .env
