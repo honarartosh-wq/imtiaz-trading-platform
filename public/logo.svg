@@ -1,0 +1,43 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="95" fill="url(#logoGradient)" opacity="0.1"/>
+
+  <!-- Trading Chart Icon -->
+  <path d="M 50 120 L 70 100 L 90 110 L 110 80 L 130 90 L 150 60"
+        stroke="url(#logoGradient)"
+        stroke-width="6"
+        fill="none"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- Trend Arrow -->
+  <path d="M 140 50 L 150 60 L 140 70"
+        stroke="url(#logoGradient)"
+        stroke-width="6"
+        fill="none"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- Data Points -->
+  <circle cx="50" cy="120" r="5" fill="#10b981"/>
+  <circle cx="70" cy="100" r="5" fill="#10b981"/>
+  <circle cx="90" cy="110" r="5" fill="#10b981"/>
+  <circle cx="110" cy="80" r="5" fill="#06b6d4"/>
+  <circle cx="130" cy="90" r="5" fill="#06b6d4"/>
+  <circle cx="150" cy="60" r="5" fill="#06b6d4"/>
+
+  <!-- Letter "I" -->
+  <rect x="85" y="140" width="6" height="30" fill="url(#logoGradient)" rx="3"/>
+  <circle cx="88" cy="135" r="4" fill="url(#logoGradient)"/>
+
+  <!-- Letter "T" -->
+  <rect x="100" y="140" width="20" height="5" fill="url(#logoGradient)" rx="2"/>
+  <rect x="107" y="140" width="6" height="30" fill="url(#logoGradient)" rx="3"/>
+</svg>
