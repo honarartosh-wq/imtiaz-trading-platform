@@ -383,7 +383,45 @@ const ManagerDashboard = ({ user, onLogout }) => {
   };
 
   const handleAddLP = () => {
-    if (!newLP.name || !newLP.login || !newLP.password || !newLP.server) { alert('Please fill all LP credentials'); return; }
+    // Validate LP name
+    if (!newLP.name || newLP.name.trim() === '') {
+      alert('Please enter LP name');
+      return;
+    }
+
+    // Type-specific validation
+    if (newLP.type === 'MT5' || newLP.type === 'MT4') {
+      // MetaTrader validation
+      if (!newLP.login || !newLP.password || !newLP.server) {
+        alert('Please fill all MetaTrader credentials (Login, Password, Server)');
+        return;
+      }
+    } else if (newLP.type === 'REST+WebSocket') {
+      // REST + WebSocket validation
+      if (!newLP.apiKey || !newLP.apiSecret || !newLP.baseUrl || !newLP.websocketUrl) {
+        alert('Please fill all REST+WebSocket credentials (API Key, API Secret, REST URL, WebSocket URL)');
+        return;
+      }
+    } else if (newLP.type === 'REST') {
+      // REST only validation
+      if (!newLP.apiKey || !newLP.apiSecret || !newLP.baseUrl) {
+        alert('Please fill all REST API credentials (API Key, API Secret, Base URL)');
+        return;
+      }
+    } else if (newLP.type === 'WebSocket') {
+      // WebSocket only validation
+      if (!newLP.apiKey || !newLP.apiSecret || !newLP.websocketUrl) {
+        alert('Please fill all WebSocket credentials (API Key, API Secret, WebSocket URL)');
+        return;
+      }
+    } else if (newLP.type === 'FIX') {
+      // FIX API validation
+      if (!newLP.apiKey || !newLP.apiSecret || !newLP.passphrase || !newLP.baseUrl) {
+        alert('Please fill all FIX API credentials (SenderCompID, TargetCompID, Password, Server)');
+        return;
+      }
+    }
+
     const extraSpread = {
       EURUSD: parseFloat(newLP.extraSpread.EURUSD) || 0.5,
       GBPUSD: parseFloat(newLP.extraSpread.GBPUSD) || 0.5,
@@ -392,7 +430,23 @@ const ManagerDashboard = ({ user, onLogout }) => {
       BTCUSD: parseFloat(newLP.extraSpread.BTCUSD) || 10.0
     };
     setLps([...lps, { id: Date.now(), ...newLP, extraSpread: extraSpread, status: 'connected', latency: Math.floor(Math.random() * 100) + 50, uptime: parseFloat(newLP.uptime) || 99.9 }]);
-    setNewLP({ name: '', type: 'MT5', login: '', password: '', server: '', spread: '', uptime: '99.9', extraSpread: { EURUSD: '0.5', GBPUSD: '0.5', USDJPY: '0.5', XAUUSD: '2.0', BTCUSD: '10.0' } });
+
+    // Reset form to initial state (REST+WebSocket as default)
+    setNewLP({
+      name: '',
+      type: 'REST+WebSocket',
+      apiKey: '',
+      apiSecret: '',
+      passphrase: '',
+      baseUrl: '',
+      websocketUrl: '',
+      login: '',
+      password: '',
+      server: '',
+      spread: '',
+      uptime: '99.9',
+      extraSpread: { EURUSD: '0.5', GBPUSD: '0.5', USDJPY: '0.5', XAUUSD: '2.0', BTCUSD: '10.0' }
+    });
     setShowAddLP(false);
     alert('✅ Liquidity Provider added successfully with extra spread markup!');
   };
