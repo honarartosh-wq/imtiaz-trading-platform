@@ -7,8 +7,7 @@ sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
 
 # Supabase
-supabase==2.3.0
-postgrest==0.13.2
+supabase==2.9.0
 
 # Utilities
 python-dotenv==1.0.0
