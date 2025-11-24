@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingUp, Users, Shield, Building2, Copy, CheckCircle, DollarSign, Activity, BarChart3, Clock, Download, Upload, Eye, EyeOff, Plus, X, AlertTriangle, Server, Settings, Zap, Globe, Edit2, Trash2, Phone, FileText, RefreshCw, Key } from 'lucide-react';
+import { TrendingUp, Copy, CheckCircle, DollarSign, Activity, BarChart3, Clock, Download, Upload, Eye, EyeOff, Plus, X, AlertTriangle, Server, Globe, FileText, Key } from 'lucide-react';
 
 // ==================== CONSTANTS ====================
 const TRADING_SYMBOLS = ['EURUSD', 'GBPUSD', 'USDJPY', 'XAUUSD', 'BTCUSD'];
@@ -8,8 +8,8 @@ const DEFAULT_EXTRA_SPREAD = {
   EURUSD: 0.5,
   GBPUSD: 0.5,
   USDJPY: 0.5,
-  XAUUSD: 2.0,
-  BTCUSD: 10.0
+  XAUUSD: 2,
+  BTCUSD: 10
 };
 
 // ==================== MAIN APP ====================
@@ -89,30 +89,17 @@ const ImtiazTradingPlatform = () => {
 
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-8 border border-slate-700">
           <div className="flex space-x-2 mb-6">
-            <button onClick={() => setShowRegister(false)} className={`flex-1 py-3 rounded-lg font-semibold ${!showRegister ? 'bg-emerald-600' : 'bg-slate-700 text-slate-400'}`}>Login</button>
+            <button onClick={() => setShowRegister(false)} className={`flex-1 py-3 rounded-lg font-semibold ${showRegister ? 'bg-slate-700 text-slate-400' : 'bg-emerald-600'}`}>Login</button>
             <button onClick={() => setShowRegister(true)} className={`flex-1 py-3 rounded-lg font-semibold ${showRegister ? 'bg-emerald-600' : 'bg-slate-700 text-slate-400'}`}>Register</button>
           </div>
 
-          {!showRegister ? (
-            <div className="space-y-4">
-              <input type="email" placeholder="Email" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={loginForm.email} onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })} />
-              <input type="password" placeholder="Password" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
-              {loginError && <div className="bg-red-600/10 border border-red-600/30 rounded-lg p-3 text-red-400 text-sm">{loginError}</div>}
-              <button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-semibold">Login</button>
-              <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 text-xs text-slate-300 space-y-1">
-                <div><strong>Manager:</strong> manager@imtiaz.com / manager123</div>
-                <div><strong>Admin:</strong> admin@imtiaz.com / admin123</div>
-                <div><strong>Standard Client:</strong> client@example.com / client123</div>
-                <div><strong>Business Client:</strong> business@example.com / business123</div>
-              </div>
-            </div>
-          ) : (
+          {showRegister ? (
             <div className="space-y-4">
               <input type="text" placeholder="Full Name" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={registerForm.name} onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })} />
               <input type="email" placeholder="Email" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={registerForm.email} onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} />
               <input type="tel" placeholder="Phone" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={registerForm.phone} onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })} />
               <input type="text" placeholder="Branch Referral Code" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white uppercase" value={registerForm.referralCode} onChange={(e) => setRegisterForm({ ...registerForm, referralCode: e.target.value.toUpperCase() })} />
-              
+
               {/* Account Mode Selection */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Account Mode</label>
@@ -168,6 +155,19 @@ const ImtiazTradingPlatform = () => {
                 <div><strong>DT002-REF</strong> - Downtown Branch</div>
               </div>
             </div>
+          ) : (
+            <div className="space-y-4">
+              <input type="email" placeholder="Email" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={loginForm.email} onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })} />
+              <input type="password" placeholder="Password" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
+              {loginError && <div className="bg-red-600/10 border border-red-600/30 rounded-lg p-3 text-red-400 text-sm">{loginError}</div>}
+              <button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-semibold">Login</button>
+              <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 text-xs text-slate-300 space-y-1">
+                <div><strong>Manager:</strong> manager@imtiaz.com / manager123</div>
+                <div><strong>Admin:</strong> admin@imtiaz.com / admin123</div>
+                <div><strong>Standard Client:</strong> client@example.com / client123</div>
+                <div><strong>Business Client:</strong> business@example.com / business123</div>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -205,7 +205,6 @@ const ManagerDashboard = ({ user, onLogout }) => {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showAddRoutingRule, setShowAddRoutingRule] = useState(false);
   const [showEmergencyTrade, setShowEmergencyTrade] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showEditAdminModal, setShowEditAdminModal] = useState(false);
   const [showTransactionHistory, setShowTransactionHistory] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState(null);
@@ -262,16 +261,17 @@ const ManagerDashboard = ({ user, onLogout }) => {
     const interval = setInterval(() => {
       setMarketPrices(prev => {
         const updated = {};
-        Object.keys(prev).forEach(symbol => {
+        for (const symbol of Object.keys(prev)) {
           const change = (Math.random() - 0.5) * 0.0002;
           const newBid = prev[symbol].bid + change;
           const newAsk = newBid + (prev[symbol].spread / 10000);
+          const decimals = symbol === 'XAUUSD' || symbol === 'BTCUSD' ? 2 : 5;
           updated[symbol] = {
-            bid: parseFloat(newBid.toFixed(symbol === 'XAUUSD' ? 2 : symbol === 'BTCUSD' ? 2 : 5)),
-            ask: parseFloat(newAsk.toFixed(symbol === 'XAUUSD' ? 2 : symbol === 'BTCUSD' ? 2 : 5)),
+            bid: Number.parseFloat(newBid.toFixed(decimals)),
+            ask: Number.parseFloat(newAsk.toFixed(decimals)),
             spread: prev[symbol].spread
           };
-        });
+        }
         return updated;
       });
     }, 1500);
@@ -280,7 +280,7 @@ const ManagerDashboard = ({ user, onLogout }) => {
 
   // Manager Wallet functions
   const handleManagerWalletDeposit = () => {
-    const amount = parseFloat(managerDepositAmount);
+    const amount = Number.parseFloat(managerDepositAmount);
     if (!amount || amount <= 0) { alert('Invalid amount'); return; }
     setManagerWallet(managerWallet + amount);
     setManagerWalletTransactions([{ id: Date.now(), date: new Date().toLocaleString(), type: 'deposit', amount, description: 'Manager wallet deposit', status: 'completed' }, ...managerWalletTransactions]);
@@ -290,7 +290,7 @@ const ManagerDashboard = ({ user, onLogout }) => {
   };
 
   const handleManagerWalletWithdraw = () => {
-    const amount = parseFloat(managerWithdrawAmount);
+    const amount = Number.parseFloat(managerWithdrawAmount);
     if (!amount || amount <= 0) { alert('Invalid amount'); return; }
     if (amount > managerWallet) { alert('Insufficient wallet balance'); return; }
     setManagerWallet(managerWallet - amount);
@@ -301,12 +301,12 @@ const ManagerDashboard = ({ user, onLogout }) => {
   };
 
   const handleTransferToBranch = () => {
-    const amount = parseFloat(branchTransferAmount);
+    const amount = Number.parseFloat(branchTransferAmount);
     if (!amount || amount <= 0) { alert('Invalid amount'); return; }
     if (amount > managerWallet) { alert('Insufficient wallet balance'); return; }
     if (!selectedBranchForTransfer) { alert('Please select a branch'); return; }
     
-    const branch = branches.find(b => b.id === parseInt(selectedBranchForTransfer));
+    const branch = branches.find(b => b.id === Number.parseInt(selectedBranchForTransfer, 10));
     if (!branch) { alert('Branch not found'); return; }
     
     setManagerWallet(managerWallet - amount);
@@ -336,9 +336,9 @@ const ManagerDashboard = ({ user, onLogout }) => {
 
   const handleAddBranch = () => {
     if (!newBranch.name || !newBranch.code) { alert('Please fill required fields'); return; }
-    const leverage = parseInt(newBranch.leverage) || 100;
+    const leverage = Number.parseInt(newBranch.leverage, 10) || 100;
     if (leverage < 1 || leverage > 1000) { alert('Leverage must be between 1:1 and 1:1000'); return; }
-    const commissionPerLot = parseFloat(newBranch.commissionPerLot) || 5.0;
+    const commissionPerLot = Number.parseFloat(newBranch.commissionPerLot) || 5;
     if (commissionPerLot < 0 || commissionPerLot > 100) { alert('Commission must be between 0 and 100'); return; }
     const admin = newBranch.adminName ? { name: newBranch.adminName, email: newBranch.adminEmail, password: newBranch.adminPassword, status: 'active' } : null;
     setBranches([...branches, { id: Date.now(), name: newBranch.name, code: newBranch.code, address: newBranch.address, phone: newBranch.phone, status: 'active', clients: 0, balance: 0, leverage: leverage, commissionPerLot: commissionPerLot, logo: newBranch.logo, admin, transactions: [] }]);
@@ -423,11 +423,11 @@ const ManagerDashboard = ({ user, onLogout }) => {
     }
 
     const extraSpread = {
-      EURUSD: parseFloat(newLP.extraSpread.EURUSD) || 0.5,
-      GBPUSD: parseFloat(newLP.extraSpread.GBPUSD) || 0.5,
-      USDJPY: parseFloat(newLP.extraSpread.USDJPY) || 0.5,
-      XAUUSD: parseFloat(newLP.extraSpread.XAUUSD) || 2.0,
-      BTCUSD: parseFloat(newLP.extraSpread.BTCUSD) || 10.0
+      EURUSD: Number.parseFloat(newLP.extraSpread.EURUSD) || 0.5,
+      GBPUSD: Number.parseFloat(newLP.extraSpread.GBPUSD) || 0.5,
+      USDJPY: Number.parseFloat(newLP.extraSpread.USDJPY) || 0.5,
+      XAUUSD: Number.parseFloat(newLP.extraSpread.XAUUSD) || 2,
+      BTCUSD: Number.parseFloat(newLP.extraSpread.BTCUSD) || 10
     };
     setLps([...lps, { id: Date.now(), ...newLP, extraSpread: extraSpread, status: 'connected', latency: Math.floor(Math.random() * 100) + 50, uptime: parseFloat(newLP.uptime) || 99.9 }]);
 
@@ -453,8 +453,8 @@ const ManagerDashboard = ({ user, onLogout }) => {
 
   const handleAddRoutingRule = () => {
     if (!newRoutingRule.lpId) { alert('Please select an LP'); return; }
-    const lp = lps.find(l => l.id === parseInt(newRoutingRule.lpId));
-    setRoutingRules([...routingRules, { id: Date.now(), ...newRoutingRule, lpId: parseInt(newRoutingRule.lpId), lpName: lp.name }]);
+    const lp = lps.find(l => l.id === Number.parseInt(newRoutingRule.lpId, 10));
+    setRoutingRules([...routingRules, { id: Date.now(), ...newRoutingRule, lpId: Number.parseInt(newRoutingRule.lpId, 10), lpName: lp.name }]);
     setNewRoutingRule({ symbol: 'EURUSD', side: 'BUY', lpId: '' });
     setShowAddRoutingRule(false);
     alert('✅ Routing rule added!');
@@ -493,7 +493,7 @@ const ManagerDashboard = ({ user, onLogout }) => {
   };
 
   const handleDeposit = () => {
-    const amount = parseFloat(transactionAmount);
+    const amount = Number.parseFloat(transactionAmount);
     if (!amount || amount <= 0) { alert('Invalid amount'); return; }
     const newBalance = selectedBranch.balance + amount;
     const transaction = {
@@ -517,7 +517,7 @@ const ManagerDashboard = ({ user, onLogout }) => {
   };
 
   const handleWithdraw = () => {
-    const amount = parseFloat(transactionAmount);
+    const amount = Number.parseFloat(transactionAmount);
     if (!amount || amount <= 0) { alert('Invalid amount'); return; }
     if (amount > selectedBranch.balance) { alert('Insufficient branch balance'); return; }
     const newBalance = selectedBranch.balance - amount;
