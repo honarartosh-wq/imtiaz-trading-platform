@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import { useAuth } from '../../context/AuthContext';
-import { 
-  TrendingUp, 
+import {
+  TrendingUp,
   TrendingDown,
   DollarSign,
   PieChart,
@@ -13,12 +14,17 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   BarChart3,
-  Wallet
+  Wallet,
+  FileDown
 } from 'lucide-react';
 
 const ClientDashboard = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+
+  if (!user) {
+    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
+  }
 
   const portfolio = {
     balance: user.balance || 50000,
@@ -31,22 +37,22 @@ const ClientDashboard = () => {
   };
 
   const positions = [
-    { id: 1, pair: 'EUR/USD', type: 'Buy', lots: 0.5, entry: 1.0850, current: 1.0895, profit: 225, pips: 45 },
-    { id: 2, pair: 'GBP/USD', type: 'Sell', lots: 0.3, entry: 1.2650, current: 1.2620, profit: 90, pips: 30 },
-    { id: 3, pair: 'USD/JPY', type: 'Buy', lots: 0.2, entry: 149.50, current: 149.20, profit: -60, pips: -30 }
+    { id: 1, pair: 'EUR/USD', type: 'Buy', lots: 0.5, entry: 1.0897, current: 1.0895, profit: 215, pips: -2, spreadCost: 10, commission: 3.5, initialCost: 13.5, netProfit: 201.5 },
+    { id: 2, pair: 'GBP/USD', type: 'Sell', lots: 0.3, entry: 1.262, current: 1.262, profit: 84, pips: 30, spreadCost: 6, commission: 2.1, initialCost: 8.1, netProfit: 75.9 },
+    { id: 3, pair: 'USD/JPY', type: 'Buy', lots: 0.2, entry: 149.22, current: 149.2, profit: -67, pips: -2, spreadCost: 3.65, commission: 1.4, initialCost: 5.05, netProfit: -72.05 }
   ];
 
   const recentTransactions = [
-    { id: 1, type: 'deposit', amount: 5000, status: 'completed', date: '2025-11-15' },
-    { id: 2, type: 'withdrawal', amount: 2000, status: 'completed', date: '2025-11-10' },
-    { id: 3, type: 'deposit', amount: 10000, status: 'completed', date: '2025-11-05' }
+    { id: 1, type: 'deposit', amount: 5000, status: 'pending', date: '2025-11-20', time: '10:30' },
+    { id: 2, type: 'withdrawal', amount: 2000, status: 'approved', date: '2025-11-18', time: '14:20' },
+    { id: 3, type: 'deposit', amount: 10000, status: 'completed', date: '2025-11-15', time: '09:15' }
   ];
 
   const tradingPairs = [
-    { pair: 'EUR/USD', bid: 1.0895, ask: 1.0897, change: '+0.12%', status: 'up' },
-    { pair: 'GBP/USD', bid: 1.2620, ask: 1.2622, change: '-0.08%', status: 'down' },
-    { pair: 'USD/JPY', bid: 149.20, ask: 149.22, change: '+0.25%', status: 'up' },
-    { pair: 'AUD/USD', bid: 0.6525, ask: 0.6527, change: '+0.15%', status: 'up' }
+    { pair: 'EUR/USD', bid: 1.0895, ask: 1.0897, spread: 0.0002, change: '+0.12%', status: 'up', commission: 7, contractSize: 100000, pipValue: 10 },
+    { pair: 'GBP/USD', bid: 1.262, ask: 1.2622, spread: 0.0002, change: '-0.08%', status: 'down', commission: 7, contractSize: 100000, pipValue: 10 },
+    { pair: 'USD/JPY', bid: 149.2, ask: 149.22, spread: 0.02, change: '+0.25%', status: 'up', commission: 7, contractSize: 100000, pipValue: 9.12 },
+    { pair: 'AUD/USD', bid: 0.6525, ask: 0.6527, spread: 0.0002, change: '+0.15%', status: 'up', commission: 7, contractSize: 100000, pipValue: 10 }
   ];
 
   return (
@@ -55,11 +61,23 @@ const ClientDashboard = () => {
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Trading Platform</h1>
-              <p className="text-gray-400 text-sm">
-                Welcome, {user.name} • Account: {user.accountNumber}
-              </p>
+            <div className="flex items-center gap-4">
+              {user.branchLogo && (
+                <img
+                  src={user.branchLogo}
+                  alt={user.branchName || user.branch}
+                  className="h-12 w-12 object-contain bg-white rounded p-1"
+                  onError={(e) => e.target.style.display = 'none'}
+                />
+              )}
+              <div>
+                <h1 className="text-2xl font-bold text-white">
+                  {user.branchName || 'Trading Platform'}
+                </h1>
+                <p className="text-gray-400 text-sm">
+                  Welcome, {user.name} • Account: {user.accountNumber}
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <button className="p-2 text-gray-400 hover:text-white transition-colors">
@@ -86,11 +104,7 @@ const ClientDashboard = () => {
           <div className="flex gap-6">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
-                activeTab === 'overview'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
+              className={\`py-4 px-2 border-b-2 transition-colors \${activeTab === 'overview' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-400 hover:text-white'}\`}
             >
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" />
@@ -99,11 +113,7 @@ const ClientDashboard = () => {
             </button>
             <button
               onClick={() => setActiveTab('trading')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
-                activeTab === 'trading'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
+              className={\`py-4 px-2 border-b-2 transition-colors \${activeTab === 'trading' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-400 hover:text-white'}\`}
             >
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4" />
@@ -112,11 +122,7 @@ const ClientDashboard = () => {
             </button>
             <button
               onClick={() => setActiveTab('portfolio')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
-                activeTab === 'portfolio'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
+              className={\`py-4 px-2 border-b-2 transition-colors \${activeTab === 'portfolio' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-400 hover:text-white'}\`}
             >
               <div className="flex items-center gap-2">
                 <PieChart className="w-4 h-4" />
@@ -124,15 +130,20 @@ const ClientDashboard = () => {
               </div>
             </button>
             <button
-              onClick={() => setActiveTab('transactions')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
-                activeTab === 'transactions'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
+              onClick={() => setActiveTab('history')}
+              className={\`py-4 px-2 border-b-2 transition-colors \${activeTab === 'history' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-400 hover:text-white'}\`}
             >
               <div className="flex items-center gap-2">
                 <History className="w-4 h-4" />
+                History
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('transactions')}
+              className={\`py-4 px-2 border-b-2 transition-colors \${activeTab === 'transactions' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-400 hover:text-white'}\`}
+            >
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4" />
                 Transactions
               </div>
             </button>
@@ -151,7 +162,7 @@ const ClientDashboard = () => {
                   <h3 className="text-blue-100 text-sm">Balance</h3>
                   <Wallet className="text-blue-200 w-5 h-5" />
                 </div>
-                <p className="text-3xl font-bold text-white">${portfolio.balance.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-white">\${portfolio.balance.toLocaleString()}</p>
               </div>
 
               <div className="bg-gradient-to-br from-green-600 to-green-700 p-6 rounded-lg">
@@ -159,22 +170,19 @@ const ClientDashboard = () => {
                   <h3 className="text-green-100 text-sm">Equity</h3>
                   <DollarSign className="text-green-200 w-5 h-5" />
                 </div>
-                <p className="text-3xl font-bold text-white">${portfolio.equity.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-white">\${portfolio.equity.toLocaleString()}</p>
               </div>
 
               <div className="bg-gradient-to-br from-purple-600 to-purple-700 p-6 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-purple-100 text-sm">Profit/Loss</h3>
-                  {portfolio.profit >= 0 ? 
-                    <TrendingUp className="text-purple-200 w-5 h-5" /> : 
+                  {portfolio.profit >= 0 ?
+                    <TrendingUp className="text-purple-200 w-5 h-5" /> :
                     <TrendingDown className="text-purple-200 w-5 h-5" />
                   }
                 </div>
-                <p className={`text-3xl font-bold ${portfolio.profit >= 0 ? 'text-white' : 'text-red-200'}`}>
+                <p className={\`text-3xl font-bold \${portfolio.profit >= 0 ? 'text-white' : 'text-red-200'}\`}>
                   {portfolio.profit >= 0 ? '+' : ''}{portfolio.profit.toLocaleString()}
-                </p>
-                <p className="text-purple-100 text-sm mt-1">
-                  {portfolio.profitPercent >= 0 ? '+' : ''}{portfolio.profitPercent}%
                 </p>
               </div>
 
@@ -183,10 +191,7 @@ const ClientDashboard = () => {
                   <h3 className="text-orange-100 text-sm">Free Margin</h3>
                   <CreditCard className="text-orange-200 w-5 h-5" />
                 </div>
-                <p className="text-3xl font-bold text-white">${portfolio.freeMargin.toLocaleString()}</p>
-                <p className="text-orange-100 text-sm mt-1">
-                  Margin Level: {portfolio.marginLevel}%
-                </p>
+                <p className="text-3xl font-bold text-white">\${portfolio.freeMargin.toLocaleString()}</p>
               </div>
             </div>
 
@@ -202,9 +207,7 @@ const ClientDashboard = () => {
                       <th className="text-left text-gray-400 text-sm font-medium py-3">Lots</th>
                       <th className="text-left text-gray-400 text-sm font-medium py-3">Entry</th>
                       <th className="text-left text-gray-400 text-sm font-medium py-3">Current</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Pips</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Profit</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Action</th>
+                      <th className="text-left text-gray-400 text-sm font-medium py-3">Net P/L</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -212,9 +215,7 @@ const ClientDashboard = () => {
                       <tr key={pos.id} className="border-b border-gray-700">
                         <td className="py-3 text-white font-semibold">{pos.pair}</td>
                         <td className="py-3">
-                          <span className={`flex items-center gap-1 ${
-                            pos.type === 'Buy' ? 'text-green-400' : 'text-red-400'
-                          }`}>
+                          <span className={\`flex items-center gap-1 \${pos.type === 'Buy' ? 'text-green-400' : 'text-red-400'}\`}>
                             {pos.type === 'Buy' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                             {pos.type}
                           </span>
@@ -222,16 +223,8 @@ const ClientDashboard = () => {
                         <td className="py-3 text-white">{pos.lots}</td>
                         <td className="py-3 text-gray-400">{pos.entry}</td>
                         <td className="py-3 text-white">{pos.current}</td>
-                        <td className={`py-3 ${pos.pips >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {pos.pips >= 0 ? '+' : ''}{pos.pips}
-                        </td>
-                        <td className={`py-3 font-semibold ${pos.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {pos.profit >= 0 ? '+' : ''}${pos.profit}
-                        </td>
-                        <td className="py-3">
-                          <button className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors">
-                            Close
-                          </button>
+                        <td className={\`py-3 font-bold \${pos.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}\`}>
+                          {pos.netProfit >= 0 ? '+' : ''}\${pos.netProfit.toFixed(2)}
                         </td>
                       </tr>
                     ))}
@@ -239,101 +232,54 @@ const ClientDashboard = () => {
                 </table>
               </div>
             </div>
-
-            {/* Market Prices */}
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h2 className="text-xl font-bold text-white mb-4">Market Prices</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {tradingPairs.map((item, index) => (
-                  <div key={index} className="bg-gray-700 p-4 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-white font-semibold">{item.pair}</h3>
-                      <span className={`text-sm ${
-                        item.status === 'up' ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        {item.change}
-                      </span>
-                    </div>
-                    <div className="flex gap-4">
-                      <div>
-                        <p className="text-gray-400 text-xs">Bid</p>
-                        <p className="text-white font-semibold">{item.bid}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 text-xs">Ask</p>
-                        <p className="text-white font-semibold">{item.ask}</p>
-                      </div>
-                      <div className="ml-auto flex gap-2">
-                        <button className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors">
-                          Buy
-                        </button>
-                        <button className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors">
-                          Sell
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
         {activeTab === 'trading' && (
           <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-            <h2 className="text-2xl font-bold text-white mb-4">Advanced Trading Interface</h2>
-            <p className="text-gray-400">Advanced charting and trading tools coming soon...</p>
+            <h2 className="text-2xl font-bold text-white mb-4">Live Trading</h2>
+            <p className="text-gray-400">Trading interface coming soon...</p>
           </div>
         )}
 
         {activeTab === 'portfolio' && (
           <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
             <h2 className="text-2xl font-bold text-white mb-4">Portfolio Analysis</h2>
-            <p className="text-gray-400">Detailed portfolio breakdown and analytics coming soon...</p>
+            <p className="text-gray-400">Portfolio analytics coming soon...</p>
+          </div>
+        )}
+
+        {activeTab === 'history' && (
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-4">Trading History</h2>
+            <p className="text-gray-400">Trading history will appear here...</p>
           </div>
         )}
 
         {activeTab === 'transactions' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Transaction History</h2>
-              <div className="flex gap-2">
-                <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors">
-                  Deposit
-                </button>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
-                  Withdraw
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-4">Transactions</h2>
+            <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-700">
+                <thead className="border-b border-gray-700">
                   <tr>
-                    <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Type</th>
-                    <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Amount</th>
-                    <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Status</th>
-                    <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Date</th>
+                    <th className="text-left text-gray-400 text-sm font-medium py-3">Type</th>
+                    <th className="text-left text-gray-400 text-sm font-medium py-3">Amount</th>
+                    <th className="text-left text-gray-400 text-sm font-medium py-3">Status</th>
+                    <th className="text-left text-gray-400 text-sm font-medium py-3">Date</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentTransactions.map(tx => (
-                    <tr key={tx.id} className="border-t border-gray-700">
-                      <td className="py-4 px-6">
-                        <span className={`px-2 py-1 rounded text-xs capitalize ${
-                          tx.type === 'deposit' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'
-                        }`}>
+                    <tr key={tx.id} className="border-b border-gray-700">
+                      <td className="py-3">
+                        <span className={\`px-2 py-1 rounded text-xs \${tx.type === 'deposit' ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}\`}>
                           {tx.type}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-white font-semibold">${tx.amount.toLocaleString()}</td>
-                      <td className="py-4 px-6">
-                        <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs capitalize">
-                          {tx.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-gray-400">{tx.date}</td>
+                      <td className="py-3 text-white">\${tx.amount.toLocaleString()}</td>
+                      <td className="py-3 text-gray-400">{tx.status}</td>
+                      <td className="py-3 text-gray-400">{tx.date}</td>
                     </tr>
                   ))}
                 </tbody>
