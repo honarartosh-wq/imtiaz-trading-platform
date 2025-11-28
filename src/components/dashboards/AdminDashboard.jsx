@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
   Users,
@@ -17,7 +17,10 @@ import {
   FileDown,
   ArrowUpCircle,
   ArrowDownCircle,
-  History
+  History,
+  Clock,
+  Eye,
+  Printer
 } from 'lucide-react';
 import {
   validateAmount,
@@ -43,6 +46,8 @@ import {
   getClientTransactions,
   hasClientTransactions
 } from '../../utils/adminHelpers';
+import { transactionService, TRANSACTION_STATUS, TRANSACTION_TYPE, INITIATOR_ROLE } from '../../services/transactionService';
+import { printReceipt } from '../../utils/receiptGenerator';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -53,9 +58,13 @@ const AdminDashboard = () => {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [showClientDetailsModal, setShowClientDetailsModal] = useState(false);
+  const [showTransactionHistoryModal, setShowTransactionHistoryModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [depositData, setDepositData] = useState({ amount: '', method: 'cash', comment: '' });
   const [withdrawalData, setWithdrawalData] = useState({ amount: '', method: 'cash', comment: '' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [transactions, setTransactions] = useState([]);
+  const [transactionStats, setTransactionStats] = useState(null);
   const [newClient, setNewClient] = useState({
     name: '',
     email: '',
@@ -95,6 +104,18 @@ const AdminDashboard = () => {
     'BTC/USD': { bid: 42850, ask: 42865, change: -125 },
     'EUR/GBP': { bid: 0.85632, ask: 0.85645, change: 0.0012 }
   });
+
+  // Load transactions on mount
+  useEffect(() => {
+    loadTransactions();
+  }, []);
+
+  const loadTransactions = () => {
+    const allTransactions = transactionService.getAllTransactions();
+    setTransactions(allTransactions);
+    const stats = transactionService.getTransactionStats();
+    setTransactionStats(stats);
+  };
 
   if (!user) {
     return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
@@ -267,18 +288,40 @@ const AdminDashboard = () => {
       return;
     }
 
-    const amount = Number.parseFloat(depositData.amount);
-    const message = formatTransactionMessage('deposit', {
-      clientName: selectedClient.name,
-      amount: depositData.amount,
-      method: depositData.method,
-      newBalance: selectedClient.balance + amount
-    });
-    alert(message);
+    try {
+      // Create transaction using the professional transaction service
+      const transaction = transactionService.createTransaction({
+        type: TRANSACTION_TYPE.DEPOSIT,
+        amount: depositData.amount,
+        clientId: selectedClient.id,
+        clientName: selectedClient.name,
+        clientAccount: selectedClient.account,
+        paymentMethod: depositData.method,
+        comment: depositData.comment,
+        initiatedBy: user.id,
+        initiatorRole: INITIATOR_ROLE.ADMIN,
+        initiatorName: user.name,
+        branch: user.branchName || user.branch
+      });
 
-    setShowDepositModal(false);
-    setSelectedClient(null);
-    setDepositData({ amount: '', method: 'cash', comment: '' });
+      // Reload transactions
+      loadTransactions();
+
+      alert(`✅ Deposit Transaction Created!
+
+Transaction ID: ${transaction.id}
+Client: ${selectedClient.name}
+Amount: $${Number.parseFloat(depositData.amount).toLocaleString()}
+Status: Pending Manager Approval
+
+The transaction has been created and is awaiting manager approval.`);
+
+      setShowDepositModal(false);
+      setSelectedClient(null);
+      setDepositData({ amount: '', method: 'cash', comment: '' });
+    } catch (error) {
+      alert(`❌ Error: ${error.message}`);
+    }
   };
 
   const handleOpenWithdrawalModal = (client) => {
@@ -293,18 +336,55 @@ const AdminDashboard = () => {
       return;
     }
 
-    const amount = Number.parseFloat(withdrawalData.amount);
-    const message = formatTransactionMessage('withdrawal', {
-      clientName: selectedClient.name,
-      amount: withdrawalData.amount,
-      method: withdrawalData.method,
-      newBalance: selectedClient.balance - amount
-    });
-    alert(message);
+    try {
+      // Create transaction using the professional transaction service
+      const transaction = transactionService.createTransaction({
+        type: TRANSACTION_TYPE.WITHDRAWAL,
+        amount: withdrawalData.amount,
+        clientId: selectedClient.id,
+        clientName: selectedClient.name,
+        clientAccount: selectedClient.account,
+        paymentMethod: withdrawalData.method,
+        comment: withdrawalData.comment,
+        initiatedBy: user.id,
+        initiatorRole: INITIATOR_ROLE.ADMIN,
+        initiatorName: user.name,
+        branch: user.branchName || user.branch
+      });
 
-    setShowWithdrawalModal(false);
-    setSelectedClient(null);
-    setWithdrawalData({ amount: '', method: 'cash', comment: '' });
+      // Reload transactions
+      loadTransactions();
+
+      alert(`✅ Withdrawal Transaction Created!
+
+Transaction ID: ${transaction.id}
+Client: ${selectedClient.name}
+Amount: $${Number.parseFloat(withdrawalData.amount).toLocaleString()}
+Status: Pending Manager Approval
+
+The transaction has been created and is awaiting manager approval.`);
+
+      setShowWithdrawalModal(false);
+      setSelectedClient(null);
+      setWithdrawalData({ amount: '', method: 'cash', comment: '' });
+    } catch (error) {
+      alert(`❌ Error: ${error.message}`);
+    }
+  };
+
+  const handleViewTransactionHistory = () => {
+    setShowTransactionHistoryModal(true);
+  };
+
+  const handleViewTransactionDetails = (transaction) => {
+    setSelectedTransaction(transaction);
+  };
+
+  const handlePrintReceipt = (transaction) => {
+    printReceipt(transaction, {
+      name: user.branchName || user.branch,
+      address: ''
+    });
   };
 
   const handleOpenClientDetails = (client) => {
@@ -860,6 +940,24 @@ The client will be notified of the rejection.`);
                 Client Tracking
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('transactions')}
+              className={`py-4 px-2 border-b-2 transition-colors ${
+                activeTab === 'transactions'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4" />
+                Transactions
+                {transactionStats && transactionStats.pending > 0 && (
+                  <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                    {transactionStats.pending}
+                  </span>
+                )}
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -1329,6 +1427,168 @@ The client will be notified of the rejection.`);
           </div>
         )}
 
+        {activeTab === 'transactions' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white">Transaction Management</h2>
+              <div className="text-sm text-gray-400">
+                {transactions.length} total transaction{transactions.length !== 1 ? 's' : ''}
+              </div>
+            </div>
+
+            {/* Transaction Statistics */}
+            {transactionStats && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                  <div className="text-gray-400 text-sm mb-1">Pending Approval</div>
+                  <div className="text-2xl font-bold text-yellow-400">{transactionStats.pending}</div>
+                  <div className="text-sm text-gray-500 mt-1">${transactionStats.pendingAmount.toLocaleString()}</div>
+                </div>
+                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                  <div className="text-gray-400 text-sm mb-1">Completed</div>
+                  <div className="text-2xl font-bold text-green-400">{transactionStats.completed}</div>
+                  <div className="text-sm text-gray-500 mt-1">Total Deposits: ${transactionStats.totalDeposits.toLocaleString()}</div>
+                </div>
+                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                  <div className="text-gray-400 text-sm mb-1">Processing</div>
+                  <div className="text-2xl font-bold text-blue-400">{transactionStats.processing + transactionStats.adminApproved + transactionStats.managerApproved}</div>
+                  <div className="text-sm text-gray-500 mt-1">In workflow</div>
+                </div>
+                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                  <div className="text-gray-400 text-sm mb-1">Rejected/Failed</div>
+                  <div className="text-2xl font-bold text-red-400">{transactionStats.rejected + transactionStats.failed}</div>
+                  <div className="text-sm text-gray-500 mt-1">Needs review</div>
+                </div>
+              </div>
+            )}
+
+            {/* Transactions Table */}
+            {transactions.length > 0 ? (
+              <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-700">
+                    <tr>
+                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Transaction ID</th>
+                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Client</th>
+                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Type</th>
+                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Amount</th>
+                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Status</th>
+                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Created</th>
+                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map(transaction => {
+                      const getStatusBadgeClass = (status) => {
+                        const statusClasses = {
+                          'pending': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+                          'admin_approved': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+                          'manager_approved': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+                          'processing': 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+                          'completed': 'bg-green-500/20 text-green-400 border-green-500/30',
+                          'admin_rejected': 'bg-red-500/20 text-red-400 border-red-500/30',
+                          'manager_rejected': 'bg-red-500/20 text-red-400 border-red-500/30',
+                          'failed': 'bg-red-500/20 text-red-400 border-red-500/30'
+                        };
+                        return statusClasses[status] || 'bg-gray-500/20 text-gray-400';
+                      };
+
+                      const getStatusLabel = (status) => {
+                        const labels = {
+                          'pending': 'Pending',
+                          'admin_approved': 'Admin Approved',
+                          'manager_approved': 'Manager Approved',
+                          'processing': 'Processing',
+                          'completed': 'Completed',
+                          'admin_rejected': 'Admin Rejected',
+                          'manager_rejected': 'Manager Rejected',
+                          'failed': 'Failed'
+                        };
+                        return labels[status] || status;
+                      };
+
+                      return (
+                        <tr key={transaction.id} className="border-t border-gray-700 hover:bg-gray-700/50 transition-colors">
+                          <td className="py-4 px-6">
+                            <div className="text-blue-400 font-mono text-sm">{transaction.id}</div>
+                            {transaction.receiptNumber && (
+                              <div className="text-gray-500 text-xs mt-1">Receipt: {transaction.receiptNumber}</div>
+                            )}
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className="text-white font-semibold">{transaction.clientName}</div>
+                            <div className="text-gray-400 text-sm">{transaction.clientAccount}</div>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className={`px-3 py-1 rounded text-xs font-medium uppercase ${
+                              transaction.type === 'deposit'
+                                ? 'bg-green-500/20 text-green-400'
+                                : 'bg-orange-500/20 text-orange-400'
+                            }`}>
+                              {transaction.type}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className={`font-bold text-lg ${
+                              transaction.type === 'deposit' ? 'text-green-400' : 'text-orange-400'
+                            }`}>
+                              ${transaction.amount.toLocaleString()}
+                            </div>
+                            <div className="text-gray-500 text-xs capitalize">
+                              {transaction.paymentMethod.replace(/_/g, ' ')}
+                            </div>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className={`px-3 py-1 rounded border text-xs font-medium ${getStatusBadgeClass(transaction.status)}`}>
+                              {getStatusLabel(transaction.status)}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className="text-white text-sm">
+                              {new Date(transaction.createdAt).toLocaleDateString()}
+                            </div>
+                            <div className="text-gray-400 text-xs">
+                              {new Date(transaction.createdAt).toLocaleTimeString()}
+                            </div>
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleViewTransactionDetails(transaction)}
+                                className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs transition-colors"
+                                title="View Details"
+                              >
+                                <Eye className="w-3 h-3" />
+                                View
+                              </button>
+                              {transaction.status === TRANSACTION_STATUS.COMPLETED && (
+                                <button
+                                  onClick={() => handlePrintReceipt(transaction)}
+                                  className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs transition-colors"
+                                  title="Print Receipt"
+                                >
+                                  <Printer className="w-3 h-3" />
+                                  Receipt
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="bg-gray-800 p-12 rounded-lg border border-gray-700 text-center">
+                <History className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">No Transactions Yet</h3>
+                <p className="text-gray-400">Transactions will appear here once you create deposits or withdrawals</p>
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
 
       {/* Deposit Modal */}
@@ -1527,6 +1787,188 @@ The client will be notified of the rejection.`);
               >
                 Confirm Withdrawal
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transaction Details Modal */}
+      {selectedTransaction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg w-full max-w-3xl border border-gray-700 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-6 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
+              <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                <FileText className="w-6 h-6 text-blue-400" />
+                Transaction Details
+              </h3>
+              <button
+                onClick={() => setSelectedTransaction(null)}
+                className="text-gray-400 hover:text-white text-2xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Transaction Header */}
+              <div className="bg-gray-700 rounded-lg p-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">Transaction ID</div>
+                    <div className="text-white font-mono font-bold text-lg">{selectedTransaction.id}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">Status</div>
+                    <div>
+                      <span className={`px-4 py-2 rounded-lg inline-block font-semibold ${
+                        selectedTransaction.status === 'completed' ? 'bg-green-500/20 text-green-400 border-2 border-green-500/30' :
+                        selectedTransaction.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/30' :
+                        selectedTransaction.status.includes('rejected') || selectedTransaction.status === 'failed' ? 'bg-red-500/20 text-red-400 border-2 border-red-500/30' :
+                        'bg-blue-500/20 text-blue-400 border-2 border-blue-500/30'
+                      }`}>
+                        {selectedTransaction.status.replace(/_/g, ' ').toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                  {selectedTransaction.receiptNumber && (
+                    <div className="col-span-2">
+                      <div className="text-sm text-gray-400 mb-1">Receipt Number</div>
+                      <div className="text-white font-mono">{selectedTransaction.receiptNumber}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Transaction Amount */}
+              <div className={`rounded-lg p-6 text-center ${
+                selectedTransaction.type === 'deposit' ? 'bg-green-500/10 border-2 border-green-500/30' : 'bg-orange-500/10 border-2 border-orange-500/30'
+              }`}>
+                <div className="text-sm text-gray-400 mb-2 uppercase tracking-wide">
+                  {selectedTransaction.type}
+                </div>
+                <div className={`text-5xl font-bold ${
+                  selectedTransaction.type === 'deposit' ? 'text-green-400' : 'text-orange-400'
+                }`}>
+                  ${selectedTransaction.amount.toLocaleString()}
+                </div>
+              </div>
+
+              {/* Client Information */}
+              <div>
+                <h4 className="text-lg font-semibold text-white mb-3">Client Information</h4>
+                <div className="bg-gray-700 rounded-lg p-4 space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Name:</span>
+                    <span className="text-white font-semibold">{selectedTransaction.clientName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Account:</span>
+                    <span className="text-white font-mono">{selectedTransaction.clientAccount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Branch:</span>
+                    <span className="text-white">{selectedTransaction.branch}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Details */}
+              <div>
+                <h4 className="text-lg font-semibold text-white mb-3">Payment Details</h4>
+                <div className="bg-gray-700 rounded-lg p-4 space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Payment Method:</span>
+                    <span className="text-white capitalize">{selectedTransaction.paymentMethod.replace(/_/g, ' ')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Created At:</span>
+                    <span className="text-white">{new Date(selectedTransaction.createdAt).toLocaleString()}</span>
+                  </div>
+                  {selectedTransaction.completedAt && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Completed At:</span>
+                      <span className="text-white">{new Date(selectedTransaction.completedAt).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Comment */}
+              {selectedTransaction.comment && (
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-3">Comment</h4>
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <p className="text-white">{selectedTransaction.comment}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Approval Chain - Audit Trail */}
+              <div>
+                <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                  <History className="w-5 h-5" />
+                  Approval Chain & Audit Trail
+                </h4>
+                <div className="space-y-3">
+                  {selectedTransaction.approvalChain.map((step, index) => {
+                    const getIconAndColor = (action) => {
+                      const styles = {
+                        'created': { icon: '📝', bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400' },
+                        'approved': { icon: '✅', bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400' },
+                        'rejected': { icon: '❌', bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400' },
+                        'processing': { icon: '⚙️', bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400' },
+                        'completed': { icon: '🎉', bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400' },
+                        'failed': { icon: '⚠️', bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400' }
+                      };
+                      return styles[action] || { icon: '📋', bg: 'bg-gray-500/10', border: 'border-gray-500/30', text: 'text-gray-400' };
+                    };
+
+                    const style = getIconAndColor(step.action);
+
+                    return (
+                      <div key={index} className={`${style.bg} border-2 ${style.border} rounded-lg p-4 relative`}>
+                        <div className="flex items-start gap-4">
+                          <div className="text-3xl flex-shrink-0">{style.icon}</div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className={`font-bold text-lg capitalize ${style.text}`}>{step.action}</span>
+                              <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded uppercase font-semibold">
+                                {step.role}
+                              </span>
+                            </div>
+                            <div className="text-white font-semibold mb-1">{step.userName}</div>
+                            <div className="text-sm text-gray-400">{new Date(step.timestamp).toLocaleString()}</div>
+                            {step.comment && (
+                              <div className="mt-3 p-3 bg-gray-700/50 rounded border-l-4 border-blue-500">
+                                <div className="text-sm text-gray-300 italic">"{step.comment}"</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t border-gray-700">
+                {selectedTransaction.status === TRANSACTION_STATUS.COMPLETED && (
+                  <button
+                    onClick={() => handlePrintReceipt(selectedTransaction)}
+                    className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                  >
+                    <Printer className="w-5 h-5" />
+                    Print Receipt
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedTransaction(null)}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
