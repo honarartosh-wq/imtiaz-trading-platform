@@ -55,6 +55,7 @@ const AdminDashboard = () => {
   const [showClientDetailsModal, setShowClientDetailsModal] = useState(false);
   const [depositData, setDepositData] = useState({ amount: '', method: 'cash', comment: '' });
   const [withdrawalData, setWithdrawalData] = useState({ amount: '', method: 'cash', comment: '' });
+  const [searchTerm, setSearchTerm] = useState('');
   const [newClient, setNewClient] = useState({
     name: '',
     email: '',
@@ -1141,11 +1142,35 @@ The client will be notified of the rejection.`);
 
         {activeTab === 'clientTracking' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-white">Client Tracking & Management</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white">Client Tracking & Management</h2>
+            </div>
+
+            {/* Search Bar */}
+            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by account number or client name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
 
             {/* Client Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {clients.map(client => {
+              {clients.filter(client => {
+                const searchLower = searchTerm.toLowerCase();
+                return client.name.toLowerCase().includes(searchLower) ||
+                       client.account.toLowerCase().includes(searchLower);
+              }).map(client => {
                 const clientPositions = openPositions.filter(pos => pos.clientId === client.id);
                 const totalProfit = clientPositions.reduce((sum, pos) => sum + pos.profit, 0);
                 const marginLevelColor = getMarginLevelTextColor(client.marginLevel);
@@ -1306,9 +1331,206 @@ The client will be notified of the rejection.`);
 
       </main>
 
-      {/* Modals would go here - Deposit, Withdrawal, Trade, Client Details, Add Client, Export */}
-      {/* Due to length, I'll add a comment that these modals exist in the full implementation */}
-      {/* The modal code is complete in the resolved version but omitted here for brevity */}
+      {/* Deposit Modal */}
+      {showDepositModal && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <ArrowDownCircle className="w-6 h-6 text-green-400" />
+                Deposit Funds
+              </h3>
+              <button
+                onClick={() => {
+                  setShowDepositModal(false);
+                  setSelectedClient(null);
+                  setDepositData({ amount: '', method: 'cash', comment: '' });
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-4 p-4 bg-gray-700 rounded-lg">
+              <div className="text-sm text-gray-400">Client</div>
+              <div className="text-white font-bold">{selectedClient.name}</div>
+              <div className="text-sm text-gray-400">{selectedClient.account}</div>
+              <div className="mt-2 text-sm text-gray-400">Current Balance</div>
+              <div className="text-2xl font-bold text-white">${selectedClient.balance.toLocaleString()}</div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Amount ($)</label>
+                <input
+                  type="number"
+                  value={depositData.amount}
+                  onChange={(e) => setDepositData(prev => ({ ...prev, amount: e.target.value }))}
+                  placeholder="Enter amount"
+                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Payment Method</label>
+                <select
+                  value={depositData.method}
+                  onChange={(e) => setDepositData(prev => ({ ...prev, method: e.target.value }))}
+                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="credit_card">Credit Card</option>
+                  <option value="e_wallet">E-Wallet</option>
+                  <option value="check">Check</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Comment (Optional)</label>
+                <textarea
+                  value={depositData.comment}
+                  onChange={(e) => setDepositData(prev => ({ ...prev, comment: e.target.value }))}
+                  placeholder="Add a note..."
+                  rows={3}
+                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              {depositData.amount && (
+                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="text-sm text-gray-400">New Balance</div>
+                  <div className="text-2xl font-bold text-green-400">
+                    ${(selectedClient.balance + Number.parseFloat(depositData.amount || 0)).toLocaleString()}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowDepositModal(false);
+                  setSelectedClient(null);
+                  setDepositData({ amount: '', method: 'cash', comment: '' });
+                }}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExecuteDeposit}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors font-semibold"
+              >
+                Confirm Deposit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Withdrawal Modal */}
+      {showWithdrawalModal && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <ArrowUpCircle className="w-6 h-6 text-orange-400" />
+                Withdraw Funds
+              </h3>
+              <button
+                onClick={() => {
+                  setShowWithdrawalModal(false);
+                  setSelectedClient(null);
+                  setWithdrawalData({ amount: '', method: 'cash', comment: '' });
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-4 p-4 bg-gray-700 rounded-lg">
+              <div className="text-sm text-gray-400">Client</div>
+              <div className="text-white font-bold">{selectedClient.name}</div>
+              <div className="text-sm text-gray-400">{selectedClient.account}</div>
+              <div className="mt-2 text-sm text-gray-400">Current Balance</div>
+              <div className="text-2xl font-bold text-white">${selectedClient.balance.toLocaleString()}</div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Amount ($)</label>
+                <input
+                  type="number"
+                  value={withdrawalData.amount}
+                  onChange={(e) => setWithdrawalData(prev => ({ ...prev, amount: e.target.value }))}
+                  placeholder="Enter amount"
+                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Payment Method</label>
+                <select
+                  value={withdrawalData.method}
+                  onChange={(e) => setWithdrawalData(prev => ({ ...prev, method: e.target.value }))}
+                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="credit_card">Credit Card</option>
+                  <option value="e_wallet">E-Wallet</option>
+                  <option value="check">Check</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Comment (Optional)</label>
+                <textarea
+                  value={withdrawalData.comment}
+                  onChange={(e) => setWithdrawalData(prev => ({ ...prev, comment: e.target.value }))}
+                  placeholder="Add a note..."
+                  rows={3}
+                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+
+              {withdrawalData.amount && (
+                <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                  <div className="text-sm text-gray-400">New Balance</div>
+                  <div className="text-2xl font-bold text-orange-400">
+                    ${(selectedClient.balance - Number.parseFloat(withdrawalData.amount || 0)).toLocaleString()}
+                  </div>
+                  {(selectedClient.balance - Number.parseFloat(withdrawalData.amount || 0)) < 0 && (
+                    <div className="text-red-400 text-sm mt-2">⚠️ Warning: Insufficient balance</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowWithdrawalModal(false);
+                  setSelectedClient(null);
+                  setWithdrawalData({ amount: '', method: 'cash', comment: '' });
+                }}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExecuteWithdrawal}
+                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors font-semibold"
+              >
+                Confirm Withdrawal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
