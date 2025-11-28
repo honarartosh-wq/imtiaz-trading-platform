@@ -4,7 +4,7 @@ Run this script after creating the database to populate it with initial data
 """
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine, Base
-from app.models import User, Branch, Account, UserRole, AccountType
+from app.models import User, Branch, Account, UserRole, AccountType, ProductSpread
 from app.utils.security import get_password_hash, generate_account_number
 
 
@@ -70,6 +70,66 @@ def init_db():
         # Refresh branches to get IDs
         for branch in branches:
             db.refresh(branch)
+
+        print("Creating product spreads...")
+
+        # Create default product spreads
+        product_spreads = [
+            ProductSpread(
+                symbol="EURUSD",
+                name="Euro / US Dollar",
+                base_spread=1.0,
+                extra_spread=0.5,
+                category="forex",
+                is_active=True
+            ),
+            ProductSpread(
+                symbol="GBPUSD",
+                name="British Pound / US Dollar",
+                base_spread=1.5,
+                extra_spread=0.5,
+                category="forex",
+                is_active=True
+            ),
+            ProductSpread(
+                symbol="USDJPY",
+                name="US Dollar / Japanese Yen",
+                base_spread=1.2,
+                extra_spread=0.5,
+                category="forex",
+                is_active=True
+            ),
+            ProductSpread(
+                symbol="EURGBP",
+                name="Euro / British Pound",
+                base_spread=1.5,
+                extra_spread=0.5,
+                category="forex",
+                is_active=True
+            ),
+            ProductSpread(
+                symbol="XAUUSD",
+                name="Gold / US Dollar",
+                base_spread=3.0,
+                extra_spread=2.0,
+                category="commodity",
+                is_active=True
+            ),
+            ProductSpread(
+                symbol="BTCUSD",
+                name="Bitcoin / US Dollar",
+                base_spread=20.0,
+                extra_spread=10.0,
+                category="crypto",
+                is_active=True
+            ),
+        ]
+
+        for spread in product_spreads:
+            db.add(spread)
+
+        db.commit()
+        print(f"✓ Created {len(product_spreads)} product spreads")
 
         print("Creating demo users...")
 

@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Building2, 
-  TrendingUp, 
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  TrendingUp,
   DollarSign,
   AlertCircle,
   LogOut,
   Settings,
   Bell,
-  PlusCircle,
-  UserPlus
+  Package
 } from 'lucide-react';
+import ProductSpreads from '../manager/ProductSpreads';
+import BranchCommissions from '../manager/BranchCommissions';
 
 const ManagerDashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -24,12 +25,6 @@ const ManagerDashboard = ({ user, onLogout }) => {
     monthlyRevenue: '$45,800',
     activeRisks: 3
   };
-
-  const branches = [
-    { id: 1, name: 'Branch A', admins: 2, clients: 45, volume: '$850,000', status: 'active' },
-    { id: 2, name: 'Branch B', admins: 2, clients: 52, volume: '$980,000', status: 'active' },
-    { id: 3, name: 'Branch C', admins: 1, clients: 30, volume: '$620,000', status: 'active' }
-  ];
 
   const recentActivity = [
     { id: 1, action: 'New client registered', branch: 'Branch A', time: '2 hours ago' },
@@ -82,6 +77,19 @@ const ManagerDashboard = ({ user, onLogout }) => {
               <div className="flex items-center gap-2">
                 <LayoutDashboard className="w-4 h-4" />
                 Overview
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('products')}
+              className={`py-4 px-2 border-b-2 transition-colors ${
+                activeTab === 'products'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Products
               </div>
             </button>
             <button
@@ -193,56 +201,9 @@ const ManagerDashboard = ({ user, onLogout }) => {
           </div>
         )}
 
-        {activeTab === 'branches' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Branch Management</h2>
-              <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
-                <PlusCircle className="w-4 h-4" />
-                Add Branch
-              </button>
-            </div>
+        {activeTab === 'products' && <ProductSpreads />}
 
-            <div className="grid gap-6">
-              {branches.map(branch => (
-                <div key={branch.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-blue-600 p-3 rounded-lg">
-                        <Building2 className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-white">{branch.name}</h3>
-                        <span className="inline-block mt-1 px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">
-                          {branch.status}
-                        </span>
-                      </div>
-                    </div>
-                    <button className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
-                      <UserPlus className="w-4 h-4" />
-                      Add Admin
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-gray-700 p-4 rounded-lg">
-                      <p className="text-gray-400 text-sm">Admins</p>
-                      <p className="text-2xl font-bold text-white">{branch.admins}</p>
-                    </div>
-                    <div className="bg-gray-700 p-4 rounded-lg">
-                      <p className="text-gray-400 text-sm">Clients</p>
-                      <p className="text-2xl font-bold text-white">{branch.clients}</p>
-                    </div>
-                    <div className="bg-gray-700 p-4 rounded-lg">
-                      <p className="text-gray-400 text-sm">Volume</p>
-                      <p className="text-2xl font-bold text-white">{branch.volume}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {activeTab === 'branches' && <BranchCommissions />}
 
         {activeTab === 'analytics' && (
           <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
