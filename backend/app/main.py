@@ -1,13 +1,24 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import Base, engine
 from app.api import auth, manager
+from app.utils.logging import setup_logging, get_logger
 # Import other routers as we create them
 # from app.api import accounts, transactions, trades
 
+# Setup logging
+setup_logging(log_level="INFO" if not settings.DEBUG else "DEBUG")
+logger = get_logger(__name__)
+
 # Create database tables
 Base.metadata.create_all(bind=engine)
+
+# Create rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Create FastAPI app
 app = FastAPI(
@@ -17,6 +28,10 @@ app = FastAPI(
     debug=settings.DEBUG
 )
 
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -25,6 +40,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
 
 # Include routers
 app.include_router(auth.router, prefix="/api")
@@ -48,24 +65,6 @@ async def root():
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
-
-
-@app.post("/api/init-database")
-async def initialize_database():
-    """One-time database initialization endpoint. Remove after use."""
-    try:
-        from app.init_db import init_db
-        init_db()
-        return {
-            "status": "success",
-            "message": "Database initialized with demo data",
-            "warning": "Remove this endpoint after initialization"
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
 
 
 if __name__ == "__main__":

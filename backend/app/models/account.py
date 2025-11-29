@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -19,10 +19,10 @@ class Account(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     account_number = Column(String, unique=True, index=True, nullable=False)
 
-    # Balance information
-    balance = Column(Float, default=0.0)
-    wallet_balance = Column(Float, default=0.0)
-    trading_balance = Column(Float, default=0.0)
+    # Balance information - Using Numeric for financial precision
+    balance = Column(Numeric(precision=15, scale=2), default=0.0)
+    wallet_balance = Column(Numeric(precision=15, scale=2), default=0.0)
+    trading_balance = Column(Numeric(precision=15, scale=2), default=0.0)
 
     # Account settings
     leverage = Column(Integer, default=100)

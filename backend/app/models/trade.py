@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Enum as SQLEnum, Text
+from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Enum as SQLEnum, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -36,19 +36,19 @@ class Trade(Base):
     trade_type = Column(SQLEnum(TradeType), nullable=False)  # BUY or SELL
     order_type = Column(SQLEnum(OrderType), nullable=False)  # MARKET, LIMIT, STOP
 
-    # Quantities
-    lots = Column(Float, nullable=False)  # Trading volume
+    # Quantities - Using Numeric for precision
+    lots = Column(Numeric(precision=10, scale=2), nullable=False)  # Trading volume
 
-    # Prices
-    open_price = Column(Float, nullable=False)
-    close_price = Column(Float, nullable=True)
-    stop_loss = Column(Float, nullable=True)
-    take_profit = Column(Float, nullable=True)
+    # Prices - Using Numeric with higher precision for forex prices
+    open_price = Column(Numeric(precision=20, scale=5), nullable=False)
+    close_price = Column(Numeric(precision=20, scale=5), nullable=True)
+    stop_loss = Column(Numeric(precision=20, scale=5), nullable=True)
+    take_profit = Column(Numeric(precision=20, scale=5), nullable=True)
 
-    # P&L
-    profit_loss = Column(Float, default=0.0)
-    commission = Column(Float, default=0.0)
-    swap = Column(Float, default=0.0)
+    # P&L - Using Numeric for financial precision
+    profit_loss = Column(Numeric(precision=15, scale=2), default=0.0)
+    commission = Column(Numeric(precision=15, scale=2), default=0.0)
+    swap = Column(Numeric(precision=15, scale=2), default=0.0)
 
     # Status
     status = Column(SQLEnum(TradeStatus), default=TradeStatus.OPEN)
