@@ -40,9 +40,9 @@ class Settings(BaseSettings):
     MT5_PASSWORD: str = ""
     MT5_TIMEOUT: int = 60000
 
-    # Admin User
-    ADMIN_EMAIL: str = "admin@imtiaz.com"
-    ADMIN_PASSWORD: str = "admin123"
+    # Admin User - MUST be set via environment variables for security
+    ADMIN_EMAIL: str
+    ADMIN_PASSWORD: str
     ADMIN_NAME: str = "System Admin"
 
     class Config:

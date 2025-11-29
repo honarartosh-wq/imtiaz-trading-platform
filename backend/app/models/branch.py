@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -14,7 +14,7 @@ class Branch(Base):
 
     # Branch settings
     leverage = Column(Integer, default=100)
-    commission_per_lot = Column(Float, default=5.0)
+    commission_per_lot = Column(Numeric(precision=10, scale=2), default=5.0)
 
     # Branch admin credentials
     admin_email = Column(String, unique=True, nullable=False)

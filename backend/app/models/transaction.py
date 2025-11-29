@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Enum as SQLEnum, Text
+from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Enum as SQLEnum, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -32,11 +32,11 @@ class Transaction(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
 
-    # Transaction details
+    # Transaction details - Using Numeric for financial precision
     transaction_type = Column(SQLEnum(TransactionType), nullable=False)
-    amount = Column(Float, nullable=False)
-    balance_before = Column(Float, nullable=False)
-    balance_after = Column(Float, nullable=False)
+    amount = Column(Numeric(precision=15, scale=2), nullable=False)
+    balance_before = Column(Numeric(precision=15, scale=2), nullable=False)
+    balance_after = Column(Numeric(precision=15, scale=2), nullable=False)
 
     # Additional info
     description = Column(Text, nullable=True)

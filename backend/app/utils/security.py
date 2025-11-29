@@ -47,9 +47,15 @@ def decode_token(token: str) -> dict:
 
 
 def generate_account_number(prefix: str = "ACC") -> str:
-    """Generate a unique account number."""
-    import random
-    import string
+    """
+    Generate a unique account number using UUID.
+    Format: PREFIX-TIMESTAMP-UUID
+    Example: ACC-20250129-a3f9c2b1
+
+    Note: Caller should still verify uniqueness in database.
+    """
+    import uuid
     timestamp = datetime.now().strftime("%Y%m%d")
-    random_part = ''.join(random.choices(string.digits, k=5))
-    return f"{prefix}-{timestamp}-{random_part}"
+    # Use first 8 characters of UUID for shorter account numbers
+    unique_id = str(uuid.uuid4()).replace('-', '')[:8]
+    return f"{prefix}-{timestamp}-{unique_id}"

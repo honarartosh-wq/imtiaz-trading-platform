@@ -42,13 +42,36 @@ export const validateEmail = (email) => {
 
 /**
  * Validate password strength
+ * Requirements:
+ * - At least 12 characters
+ * - At least one uppercase letter
+ * - At least one lowercase letter
+ * - At least one digit
+ * - At least one special character
  * @param {string} password - Password to validate
  * @returns {object} { isValid: boolean, error: string }
  */
 export const validatePassword = (password) => {
-  if (!password || password.length < 6) {
-    return { isValid: false, error: 'Password must be at least 6 characters long.' };
+  if (!password || password.length < 12) {
+    return { isValid: false, error: 'Password must be at least 12 characters long.' };
   }
+
+  if (!/[A-Z]/.test(password)) {
+    return { isValid: false, error: 'Password must contain at least one uppercase letter.' };
+  }
+
+  if (!/[a-z]/.test(password)) {
+    return { isValid: false, error: 'Password must contain at least one lowercase letter.' };
+  }
+
+  if (!/\d/.test(password)) {
+    return { isValid: false, error: 'Password must contain at least one digit.' };
+  }
+
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    return { isValid: false, error: 'Password must contain at least one special character (!@#$%^&*(),.?":{}|<>).' };
+  }
+
   return { isValid: true, error: null };
 };
 

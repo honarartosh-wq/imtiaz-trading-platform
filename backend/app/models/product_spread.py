@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, Boolean
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -10,9 +10,9 @@ class ProductSpread(Base):
     symbol = Column(String, unique=True, nullable=False, index=True)  # e.g., "EURUSD", "XAUUSD"
     name = Column(String, nullable=False)  # Display name
 
-    # Spread configuration
-    base_spread = Column(Float, default=0.0)  # Base spread from liquidity provider
-    extra_spread = Column(Float, default=0.0)  # Additional spread added by platform
+    # Spread configuration - Using Numeric for precision
+    base_spread = Column(Numeric(precision=10, scale=5), default=0.0)  # Base spread from liquidity provider
+    extra_spread = Column(Numeric(precision=10, scale=5), default=0.0)  # Additional spread added by platform
 
     # Product metadata
     category = Column(String, default="forex")  # forex, commodity, crypto
