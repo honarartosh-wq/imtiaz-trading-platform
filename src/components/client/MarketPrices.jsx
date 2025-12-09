@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 /**
  * Market Prices Component
  * Displays live market prices with bid/ask spread
+ * Optimized with React.memo for performance
  */
-export function MarketPrices({ prices, onSelectSymbol }) {
+export const MarketPrices = React.memo(function MarketPrices({ prices, onSelectSymbol }) {
   const symbols = [
     { symbol: 'EURUSD', name: 'Euro / US Dollar', category: 'forex' },
     { symbol: 'GBPUSD', name: 'British Pound / Dollar', category: 'forex' },
