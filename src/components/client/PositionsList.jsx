@@ -93,18 +93,18 @@ export const PositionsList = React.memo(function PositionsList({ positions, onCl
         <div className="text-slate-400 text-sm">Total P/L:</div>
         <div
           className={`text-xl font-bold ${
-            positions.reduce((sum, p) => sum + p.profit, 0) >= 0
+            totalPL >= 0
               ? 'text-emerald-400'
               : 'text-red-400'
           }`}
         >
-          {positions.reduce((sum, p) => sum + p.profit, 0) >= 0 ? '+' : ''}
-          ${positions.reduce((sum, p) => sum + p.profit, 0).toFixed(2)}
+          {totalPL >= 0 ? '+' : ''}
+          ${totalPL.toFixed(2)}
         </div>
       </div>
     </div>
   );
-}
+});
 
 PositionsList.propTypes = {
   positions: PropTypes.arrayOf(
