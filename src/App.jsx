@@ -210,15 +210,35 @@ const ImtiazTradingPlatform = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <input type="email" placeholder="Email" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={loginForm.email} onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })} />
-              <input type="password" placeholder="Password" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
+              <input 
+                type="email" 
+                placeholder="Email" 
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" 
+                value={loginForm.email} 
+                onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                disabled={isLoading}
+              />
+              <input 
+                type="password" 
+                placeholder="Password" 
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" 
+                value={loginForm.password} 
+                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                disabled={isLoading}
+              />
               {loginError && <div className="bg-red-600/10 border border-red-600/30 rounded-lg p-3 text-red-400 text-sm">{loginError}</div>}
-              <button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-semibold">Login</button>
-              <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 text-xs text-slate-300 space-y-1">
-                <div><strong>Manager:</strong> manager@imtiaz.com / manager123</div>
-                <div><strong>Admin:</strong> admin@imtiaz.com / admin123</div>
-                <div><strong>Standard Client:</strong> client@example.com / client123</div>
-                <div><strong>Business Client:</strong> business@example.com / business123</div>
+              <button 
+                onClick={handleLogin} 
+                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-600 disabled:cursor-not-allowed py-3 rounded-lg font-semibold"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Logging in...' : 'Login'}
+              </button>
+              <div className="bg-amber-600/10 border border-amber-600/30 rounded-lg p-4 text-xs text-slate-300">
+                <div className="font-semibold mb-2">🔐 Demo Accounts Available</div>
+                <div className="text-slate-400">Contact your branch admin for demo credentials or register for a new account.</div>
+                <div className="mt-2 text-slate-500">Note: All authentication is secured via backend API with JWT tokens.</div>
               </div>
             </div>
           )}
