@@ -19,9 +19,21 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      '.preview.emergentagent.com',
+      '.emergentagent.com'
+    ],
   },
   preview: {
     port: 3000,
     host: true,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      '.preview.emergentagent.com',
+      '.emergentagent.com'
+    ],
   },
 })
