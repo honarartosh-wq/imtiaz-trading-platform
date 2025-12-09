@@ -71,13 +71,4 @@ export const MarketPrices = React.memo(function MarketPrices({ prices, onSelectS
   );
 }
 
-MarketPrices.propTypes = {
-  prices: PropTypes.objectOf(
-    PropTypes.shape({
-      bid: PropTypes.number.isRequired,
-      ask: PropTypes.number.isRequired,
-      spread: PropTypes.number.isRequired,
-    })
-  ).isRequired,
-  onSelectSymbol: PropTypes.func,
-};
+});
