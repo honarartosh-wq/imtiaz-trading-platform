@@ -158,9 +158,9 @@ function AdminDashboard({ user, branch, onLogout }) {
           <div className=\"flex items-center space-x-3\">
             {/* Referral Code */}
             <div className=\"bg-slate-800 rounded-lg px-4 py-2 border border-slate-700\">
-              <div className=\"text-xs text-slate-400 mb-1\">Your Referral Code</div>
-              <div className=\"flex items-center space-x-2\">
-                <code className=\"text-emerald-400 font-mono font-semibold\">
+              <div className="text-xs text-slate-400 mb-1">Your Referral Code</div>
+              <div className="flex items-center space-x-2">
+                <code className="text-emerald-400 font-mono font-semibold">
                   {user.referral_code || 'MAIN001-REF'}
                 </code>
                 <button
