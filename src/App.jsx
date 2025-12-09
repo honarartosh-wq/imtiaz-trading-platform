@@ -114,12 +114,20 @@ const ImtiazTradingPlatform = () => {
     }
   };
 
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    setCurrentUser(null);
+  };
+
   if (currentUser) {
-    const userBranch = currentUser.branchId ? mockBranches[currentUser.branchId] : null;
-    switch (currentUser.type) {
-      case 'manager': return <ManagerDashboard user={currentUser} onLogout={() => setCurrentUser(null)} />;
-      case 'admin': return <AdminDashboard user={currentUser} branch={userBranch} onLogout={() => setCurrentUser(null)} />;
-      case 'client': return <ClientDashboard user={currentUser} branch={userBranch} onLogout={() => setCurrentUser(null)} />;
+    const userBranch = currentUser.branch_id ? { id: currentUser.branch_id } : null;
+    switch (currentUser.role) {
+      case 'manager': return <ManagerDashboard user={currentUser} onLogout={handleLogout} />;
+      case 'admin': return <AdminDashboard user={currentUser} branch={userBranch} onLogout={handleLogout} />;
+      case 'client': return <ClientDashboard user={currentUser} branch={userBranch} onLogout={handleLogout} />;
       default: return null;
     }
   }
