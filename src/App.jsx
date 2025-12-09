@@ -148,10 +148,38 @@ const ImtiazTradingPlatform = () => {
 
           {showRegister ? (
             <div className="space-y-4">
-              <input type="text" placeholder="Full Name" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={registerForm.name} onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })} />
-              <input type="email" placeholder="Email" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={registerForm.email} onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} />
-              <input type="tel" placeholder="Phone" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={registerForm.phone} onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })} />
-              <input type="text" placeholder="Branch Referral Code" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white uppercase" value={registerForm.referralCode} onChange={(e) => setRegisterForm({ ...registerForm, referralCode: e.target.value.toUpperCase() })} />
+              <input 
+                type="text" 
+                placeholder="Full Name" 
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" 
+                value={registerForm.name} 
+                onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+                disabled={isLoading}
+              />
+              <input 
+                type="email" 
+                placeholder="Email" 
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" 
+                value={registerForm.email} 
+                onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                disabled={isLoading}
+              />
+              <input 
+                type="tel" 
+                placeholder="Phone (Optional)" 
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" 
+                value={registerForm.phone} 
+                onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })}
+                disabled={isLoading}
+              />
+              <input 
+                type="text" 
+                placeholder="Branch Referral Code" 
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white uppercase" 
+                value={registerForm.referralCode} 
+                onChange={(e) => setRegisterForm({ ...registerForm, referralCode: e.target.value.toUpperCase() })}
+                disabled={isLoading}
+              />
 
               {/* Account Mode Selection */}
               <div>
