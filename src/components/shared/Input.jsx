@@ -1,30 +1,36 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 /**
- * Reusable Input component
- * @param {object} props - Component props
- * @param {string} props.type - Input type (text, email, password, tel, number, etc.)
- * @param {string} props.value - Input value
- * @param {function} props.onChange - Change handler
- * @param {string} props.placeholder - Placeholder text
- * @param {string} props.label - Label text (optional)
- * @param {string} props.error - Error message (optional)
- * @param {boolean} props.required - Whether input is required
- * @param {boolean} props.disabled - Whether input is disabled
- * @param {string} props.className - Additional CSS classes
+ * Reusable Input Component
+ * @param {string} type - Input type
+ * @param {string} placeholder - Placeholder text
+ * @param {string} value - Input value
+ * @param {function} onChange - Change handler
+ * @param {boolean} disabled - Disabled state
+ * @param {string} error - Error message
+ * @param {string} label - Input label
+ * @param {boolean} required - Required field
  */
-const Input = ({
+export function Input({
   type = 'text',
+  placeholder,
   value,
   onChange,
-  placeholder,
-  label,
-  error,
-  required = false,
   disabled = false,
+  error,
+  label,
+  required = false,
   className = '',
-  ...props
-}) => {
+  ...rest
+}) {
+  const baseClasses =
+    'w-full bg-slate-900 border rounded-lg px-4 py-3 text-white transition-colors';
+  const borderClass = error
+    ? 'border-red-600 focus:border-red-500'
+    : 'border-slate-700 focus:border-emerald-600';
+  const disabledClass = disabled ? 'opacity-50 cursor-not-allowed' : '';
+
   return (
     <div className="w-full">
       {label && (
@@ -35,21 +41,27 @@ const Input = ({
       )}
       <input
         type={type}
+        placeholder={placeholder}
         value={value}
         onChange={onChange}
-        placeholder={placeholder}
-        required={required}
         disabled={disabled}
-        className={`w-full bg-slate-900 border ${
-          error ? 'border-red-500' : 'border-slate-700'
-        } rounded-lg px-4 py-3 text-white focus:outline-none focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${className}`}
-        {...props}
+        required={required}
+        className={`${baseClasses} ${borderClass} ${disabledClass} ${className}`}
+        {...rest}
       />
-      {error && (
-        <p className="mt-1 text-sm text-red-400">{error}</p>
-      )}
+      {error && <p className="mt-1 text-sm text-red-400">{error}</p>}
     </div>
   );
-};
+}
 
-export default Input;
+Input.propTypes = {
+  type: PropTypes.string,
+  placeholder: PropTypes.string,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  onChange: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
+  error: PropTypes.string,
+  label: PropTypes.string,
+  required: PropTypes.bool,
+  className: PropTypes.string,
+};
