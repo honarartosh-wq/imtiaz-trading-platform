@@ -13,6 +13,9 @@ from app.models.product_spread import ProductSpread
 from app.models.branch import Branch
 from app.models.user import User, UserRole
 from app.middleware.auth import get_current_user
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/manager", tags=["Manager Operations"])
 
@@ -74,21 +77,31 @@ async def create_spread(
             detail=f"Spread for {spread_data.symbol} already exists"
         )
 
-    # Create new spread
-    new_spread = ProductSpread(
-        symbol=spread_data.symbol.upper(),
-        name=spread_data.name,
-        base_spread=spread_data.base_spread,
-        extra_spread=spread_data.extra_spread,
-        category=spread_data.category,
-        is_active=spread_data.is_active
-    )
+    try:
+        # Create new spread
+        new_spread = ProductSpread(
+            symbol=spread_data.symbol.upper(),
+            name=spread_data.name,
+            base_spread=spread_data.base_spread,
+            extra_spread=spread_data.extra_spread,
+            category=spread_data.category,
+            is_active=spread_data.is_active
+        )
 
-    db.add(new_spread)
-    db.commit()
-    db.refresh(new_spread)
+        db.add(new_spread)
+        db.commit()
+        db.refresh(new_spread)
 
-    return new_spread
+        logger.info(f"Product spread created for {new_spread.symbol} by manager {current_user.email}")
+        return new_spread
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to create spread for {spread_data.symbol}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create product spread. Please try again later."
+        )
 
 
 @router.put("/spreads/{symbol}", response_model=ProductSpreadResponse)
@@ -107,18 +120,28 @@ async def update_spread(
             detail=f"Product spread for {symbol} not found"
         )
 
-    # Update fields if provided
-    if spread_data.extra_spread is not None:
-        spread.extra_spread = spread_data.extra_spread
-    if spread_data.base_spread is not None:
-        spread.base_spread = spread_data.base_spread
-    if spread_data.is_active is not None:
-        spread.is_active = spread_data.is_active
+    try:
+        # Update fields if provided
+        if spread_data.extra_spread is not None:
+            spread.extra_spread = spread_data.extra_spread
+        if spread_data.base_spread is not None:
+            spread.base_spread = spread_data.base_spread
+        if spread_data.is_active is not None:
+            spread.is_active = spread_data.is_active
 
-    db.commit()
-    db.refresh(spread)
+        db.commit()
+        db.refresh(spread)
 
-    return spread
+        logger.info(f"Product spread updated for {spread.symbol} by manager {current_user.email}")
+        return spread
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update spread for {symbol}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update product spread. Please try again later."
+        )
 
 
 @router.delete("/spreads/{symbol}", status_code=status.HTTP_204_NO_CONTENT)
@@ -136,10 +159,20 @@ async def delete_spread(
             detail=f"Product spread for {symbol} not found"
         )
 
-    db.delete(spread)
-    db.commit()
+    try:
+        db.delete(spread)
+        db.commit()
 
-    return None
+        logger.info(f"Product spread deleted for {symbol} by manager {current_user.email}")
+        return None
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete spread for {symbol}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete product spread. Please try again later."
+        )
 
 
 # ==================== Branch Commissions Endpoints ====================
@@ -186,10 +219,20 @@ async def update_branch_commission(
             detail=f"Branch with ID {branch_id} not found"
         )
 
-    # Update commission
-    branch.commission_per_lot = commission_data.commission_per_lot
+    try:
+        # Update commission
+        branch.commission_per_lot = commission_data.commission_per_lot
 
-    db.commit()
-    db.refresh(branch)
+        db.commit()
+        db.refresh(branch)
 
-    return branch
+        logger.info(f"Branch commission updated for branch {branch_id} by manager {current_user.email}")
+        return branch
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update commission for branch {branch_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update branch commission. Please try again later."
+        )
