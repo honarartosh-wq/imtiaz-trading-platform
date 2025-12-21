@@ -29,7 +29,10 @@ export const generateId = () => {
  * @returns {string} Formatted currency string
  */
 export const formatCurrency = (value, decimals = 2) => {
-  return value.toFixed(decimals);
+  if (value == null || isNaN(value)) {
+    return '0.00';
+  }
+  return Number(value).toFixed(decimals);
 };
 
 /**
@@ -73,7 +76,6 @@ export const copyToClipboard = async (text) => {
     await navigator.clipboard.writeText(text);
     return true;
   } catch (err) {
-    console.error('Failed to copy:', err);
     return false;
   }
 };
@@ -96,6 +98,6 @@ export const safeParseFloat = (value, fallback = 0) => {
  * @returns {number} Parsed int or fallback
  */
 export const safeParseInt = (value, fallback = 0) => {
-  const parsed = parseInt(value);
+  const parsed = parseInt(value, 10);
   return isNaN(parsed) ? fallback : parsed;
 };
