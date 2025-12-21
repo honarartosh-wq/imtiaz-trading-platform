@@ -144,6 +144,11 @@ const Login = () => {
                           err.response?.data?.message ||
                           'Registration failed. Please try again.';
       setError(errorMessage);
+      
+      // Log failed KYC upload attempts for debugging
+      if (err.response?.status === 400 && errorMessage.includes('File')) {
+        console.error('KYC file validation failed:', errorMessage);
+      }
     } finally {
       setLoading(false);
     }

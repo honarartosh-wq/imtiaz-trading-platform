@@ -150,3 +150,38 @@ def log_api_request(
         api_logger.warning(message)
     else:
         api_logger.info(message)
+
+
+def log_kyc_upload(
+    user_email: str,
+    user_id: Optional[int],
+    doc_type: str,
+    success: bool,
+    file_size: int,
+    details: Optional[str] = None
+) -> None:
+    """
+    Log all KYC document uploads for audit trail.
+    
+    Args:
+        user_email: User's email address
+        user_id: User's ID (if available)
+        doc_type: Type of document uploaded
+        success: Whether the upload was successful
+        file_size: Size of the uploaded file in bytes
+        details: Additional details about the upload
+    """
+    message = f"KYC_UPLOAD - {doc_type} - User: {user_email}"
+    
+    if user_id:
+        message += f" - ID: {user_id}"
+    
+    message += f" - Size: {file_size} bytes - Status: {'SUCCESS' if success else 'FAILED'}"
+    
+    if details:
+        message += f" - {details}"
+    
+    if success:
+        security_logger.info(message)
+    else:
+        security_logger.warning(message)
