@@ -1293,9 +1293,4 @@ const AdminDashboard = ({ user, branch, onLogout }) => {
   );
 };
 
-// Manager Wallet Modals (to be added before ManagerDashboard closing)
-// These modals need to be added inside ManagerDashboard return statement
-
-// ==================== CLIENT DASHBOARD ====================
-
 export default AdminDashboard;
