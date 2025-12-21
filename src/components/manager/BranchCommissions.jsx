@@ -22,7 +22,6 @@ const BranchCommissions = () => {
       setBranches(data);
     } catch (err) {
       setError('Failed to load branches. Please try again.');
-      console.error('Error loading branches:', err);
     } finally {
       setLoading(false);
     }
@@ -63,7 +62,6 @@ const BranchCommissions = () => {
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (err) {
       setError(`Failed to update commission for ${branchName}. Please try again.`);
-      console.error('Error saving commission:', err);
     }
   };
 

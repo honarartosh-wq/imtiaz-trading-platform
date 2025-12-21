@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -9,29 +9,100 @@ import {
   LogOut,
   Settings,
   Bell,
-  Package
+  Package,
+  History,
+  UserCog,
+  FileText,
+  Shield
 } from 'lucide-react';
 import ProductSpreads from '../manager/ProductSpreads';
 import BranchCommissions from '../manager/BranchCommissions';
+import TransactionManagement from '../manager/TransactionManagement';
+import ClientManagement from '../manager/ClientManagement';
+import UserManagement from '../manager/UserManagement';
+import Reports from '../manager/Reports';
+import { getBranches, getUsers, getTransactions, getAccounts } from '../../services/api';
+import { formatCurrency, formatDate } from '../../utils/helpers';
 
 const ManagerDashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalBranches: 0,
+    totalAdmins: 0,
+    totalClients: 0,
+    totalVolume: 0,
+    monthlyRevenue: 0,
+    activeRisks: 0
+  });
+  const [recentActivity, setRecentActivity] = useState([]);
 
-  const stats = {
-    totalBranches: 3,
-    totalAdmins: 5,
-    totalClients: 127,
-    totalVolume: '$2,450,000',
-    monthlyRevenue: '$45,800',
-    activeRisks: 3
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      loadOverviewData();
+    }
+  }, [activeTab]);
+
+  const loadOverviewData = async () => {
+    try {
+      setLoading(true);
+      const [branches, users, transactions, accounts] = await Promise.all([
+        getBranches(),
+        getUsers(),
+        getTransactions(),
+        getAccounts()
+      ]);
+
+      // Calculate stats
+      const now = new Date();
+      const thisMonth = now.getMonth();
+      const thisYear = now.getFullYear();
+
+      const monthlyTransactions = transactions.filter(t => {
+        const transDate = new Date(t.created_at);
+        return transDate.getMonth() === thisMonth && transDate.getFullYear() === thisYear;
+      });
+
+      const completedTransactions = transactions.filter(t => t.status === 'completed');
+      const monthlyCompleted = monthlyTransactions.filter(t => t.status === 'completed');
+
+      const totalVolume = completedTransactions.reduce((sum, t) => sum + t.amount, 0);
+      const monthlyRevenue = monthlyCompleted.reduce((sum, t) => sum + t.amount, 0);
+
+      // Get new clients this month
+      const newClientsThisMonth = users.filter(u => {
+        if (u.role !== 'client') return false;
+        const created = new Date(u.created_at);
+        return created.getMonth() === thisMonth && created.getFullYear() === thisYear;
+      }).length;
+
+      setStats({
+        totalBranches: branches.length,
+        totalAdmins: users.filter(u => u.role === 'admin').length,
+        totalClients: users.filter(u => u.role === 'client').length,
+        totalVolume,
+        monthlyRevenue,
+        activeRisks: 0 // Would need risk calculation logic
+      });
+
+      // Build recent activity from transactions
+      const recentTransactions = transactions
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 5)
+        .map(t => ({
+          id: t.id,
+          action: `${t.type.charAt(0).toUpperCase() + t.type.slice(1)} transaction`,
+          branch: t.branch_id ? `Branch ${t.branch_id}` : 'N/A',
+          time: formatDate(t.created_at)
+        }));
+
+      setRecentActivity(recentTransactions);
+    } catch (err) {
+      // Failed to load, keep default values
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const recentActivity = [
-    { id: 1, action: 'New client registered', branch: 'Branch A', time: '2 hours ago' },
-    { id: 2, action: 'Large trade executed', branch: 'Branch B', time: '4 hours ago' },
-    { id: 3, action: 'Admin added', branch: 'Branch C', time: '6 hours ago' },
-    { id: 4, action: 'Risk threshold exceeded', branch: 'Branch A', time: '1 day ago' }
-  ];
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -65,10 +136,10 @@ const ManagerDashboard = ({ user, onLogout }) => {
       {/* Navigation Tabs */}
       <div className="bg-gray-800 border-b border-gray-700">
         <div className="px-6">
-          <div className="flex gap-6">
+          <div className="flex gap-6 overflow-x-auto">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'overview'
                   ? 'border-blue-500 text-blue-500'
                   : 'border-transparent text-gray-400 hover:text-white'
@@ -80,8 +151,47 @@ const ManagerDashboard = ({ user, onLogout }) => {
               </div>
             </button>
             <button
+              onClick={() => setActiveTab('transactions')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'transactions'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4" />
+                Transactions
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('clients')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'clients'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Clients
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'users'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <UserCog className="w-4 h-4" />
+                Users
+              </div>
+            </button>
+            <button
               onClick={() => setActiveTab('products')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'products'
                   ? 'border-blue-500 text-blue-500'
                   : 'border-transparent text-gray-400 hover:text-white'
@@ -94,7 +204,7 @@ const ManagerDashboard = ({ user, onLogout }) => {
             </button>
             <button
               onClick={() => setActiveTab('branches')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'branches'
                   ? 'border-blue-500 text-blue-500'
                   : 'border-transparent text-gray-400 hover:text-white'
@@ -106,16 +216,16 @@ const ManagerDashboard = ({ user, onLogout }) => {
               </div>
             </button>
             <button
-              onClick={() => setActiveTab('analytics')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
-                activeTab === 'analytics'
+              onClick={() => setActiveTab('reports')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'reports'
                   ? 'border-blue-500 text-blue-500'
                   : 'border-transparent text-gray-400 hover:text-white'
               }`}
             >
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Analytics
+                <FileText className="w-4 h-4" />
+                Reports
               </div>
             </button>
           </div>
@@ -160,8 +270,8 @@ const ManagerDashboard = ({ user, onLogout }) => {
                   <h3 className="text-gray-400 text-sm">Total Volume</h3>
                   <DollarSign className="text-yellow-400 w-5 h-5" />
                 </div>
-                <p className="text-3xl font-bold text-white">{stats.totalVolume}</p>
-                <p className="text-green-400 text-sm mt-2">+18% from last month</p>
+                <p className="text-3xl font-bold text-white">${formatCurrency(stats.totalVolume)}</p>
+                <p className="text-green-400 text-sm mt-2">All time</p>
               </div>
 
               <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
@@ -169,8 +279,8 @@ const ManagerDashboard = ({ user, onLogout }) => {
                   <h3 className="text-gray-400 text-sm">Monthly Revenue</h3>
                   <TrendingUp className="text-green-400 w-5 h-5" />
                 </div>
-                <p className="text-3xl font-bold text-white">{stats.monthlyRevenue}</p>
-                <p className="text-green-400 text-sm mt-2">+22% growth</p>
+                <p className="text-3xl font-bold text-white">${formatCurrency(stats.monthlyRevenue)}</p>
+                <p className="text-green-400 text-sm mt-2">This month</p>
               </div>
 
               <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
@@ -201,16 +311,17 @@ const ManagerDashboard = ({ user, onLogout }) => {
           </div>
         )}
 
+        {activeTab === 'transactions' && <TransactionManagement />}
+
+        {activeTab === 'clients' && <ClientManagement />}
+
+        {activeTab === 'users' && <UserManagement />}
+
         {activeTab === 'products' && <ProductSpreads />}
 
         {activeTab === 'branches' && <BranchCommissions />}
 
-        {activeTab === 'analytics' && (
-          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-            <h2 className="text-2xl font-bold text-white mb-4">Analytics Dashboard</h2>
-            <p className="text-gray-400">Detailed analytics and reporting coming soon...</p>
-          </div>
-        )}
+        {activeTab === 'reports' && <Reports />}
       </main>
     </div>
   );
