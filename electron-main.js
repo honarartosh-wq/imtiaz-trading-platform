@@ -133,5 +133,19 @@ app.on('activate', () => {
 
 // Handle app errors
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  const { dialog } = require('electron');
+
+  // Log error for debugging
+  if (isDev) {
+    console.error('Uncaught Exception:', error);
+  }
+
+  // Show error dialog to user
+  dialog.showErrorBox(
+    'Critical Error',
+    `An unexpected error occurred:\n\n${error.message}\n\nThe application will now close.`
+  );
+
+  // Exit the process to prevent running in inconsistent state
+  process.exit(1);
 });
