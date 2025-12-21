@@ -20,7 +20,8 @@ import {
   History,
   Clock,
   Eye,
-  Printer
+  Printer,
+  UserCog
 } from 'lucide-react';
 import {
   validateAmount,
@@ -48,6 +49,10 @@ import {
 } from '../../utils/adminHelpers';
 import { transactionService, TRANSACTION_STATUS, TRANSACTION_TYPE, INITIATOR_ROLE } from '../../services/transactionService';
 import { printReceipt } from '../../utils/receiptGenerator';
+import AdminReports from '../admin/AdminReports';
+import AdminSettings from '../admin/AdminSettings';
+import AdminUserManagement from '../admin/AdminUserManagement';
+import AdminAuditLog from '../admin/AdminAuditLog';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -937,6 +942,58 @@ The client will be notified of the rejection.`);
                 )}
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('reports')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'reports'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Reports
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('adminUsers')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'adminUsers'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <UserCog className="w-4 h-4" />
+                Users
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'settings'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                Settings
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('auditLog')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'auditLog'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Audit Log
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -1567,6 +1624,14 @@ The client will be notified of the rejection.`);
             )}
           </div>
         )}
+
+        {activeTab === 'reports' && <AdminReports branchName={user?.branchName || user?.branch} />}
+
+        {activeTab === 'adminUsers' && <AdminUserManagement branchName={user?.branchName || user?.branch} />}
+
+        {activeTab === 'settings' && <AdminSettings user={user} branchName={user?.branchName || user?.branch} />}
+
+        {activeTab === 'auditLog' && <AdminAuditLog user={user} branchName={user?.branchName || user?.branch} />}
 
       </main>
 
