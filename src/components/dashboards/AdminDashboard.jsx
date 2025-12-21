@@ -1,1094 +1,311 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import {
-  Users,
-  TrendingUp,
-  DollarSign,
-  AlertTriangle,
-  LogOut,
-  Settings,
-  Bell,
-  UserPlus,
-  FileText,
-  Shield,
-  Activity,
-  CheckCircle,
-  XCircle,
-  FileDown,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  History,
-  Clock,
-  Eye,
-  Printer,
-  UserCog
-} from 'lucide-react';
-import {
-  validateAmount,
-  validateWithdrawal,
-  updateLivePrices,
-  formatTransactionMessage
-} from '../../utils/managerHelpers';
-import {
-  getMarginLevelColor,
-  getMarginLevelTextColor,
-  getMarginLevelBgColor,
-  getMarginLevelStatus,
-  getTransactionColor,
-  getTransactionBadgeColor,
-  getTransactionAmountColor,
-  filterByDateRange,
-  calculateTradingStats,
-  calculateDepositWithdrawalStats,
-  getClientPositions,
-  hasClientPositions,
-  getClientTrades,
-  hasClientTrades,
-  getClientTransactions,
-  hasClientTransactions
-} from '../../utils/adminHelpers';
-import { transactionService, TRANSACTION_STATUS, TRANSACTION_TYPE, INITIATOR_ROLE } from '../../services/transactionService';
-import { printReceipt } from '../../utils/receiptGenerator';
-import AdminReports from '../admin/AdminReports';
-import AdminSettings from '../admin/AdminSettings';
-import AdminUserManagement from '../admin/AdminUserManagement';
-import AdminAuditLog from '../admin/AdminAuditLog';
+import React, { useState } from 'react';
+import { TrendingUp, Copy, CheckCircle, DollarSign, Activity, BarChart3, Clock, Download, Upload, Eye, EyeOff, Plus, X, AlertTriangle, Server, Globe, FileText, Key } from 'lucide-react';
 
-const AdminDashboard = () => {
-  const { user, logout } = useAuth();
+const AdminDashboard = ({ user, branch, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [showAddClientModal, setShowAddClientModal] = useState(false);
-  const [showTradeModal, setShowTradeModal] = useState(false);
+  const [referralCopied, setReferralCopied] = useState(false);
+  const [clients, setClients] = useState([
+    { 
+      id: 1, name: 'John Smith', email: 'john@example.com', account: 'ACC-10001', 
+      balance: 50000, equity: 52500, freeMargin: 47500, marginLevel: 1050, usedMargin: 5000,
+      status: 'active', password: 'client123', accountType: 'standard',
+      openPositions: 3, totalProfit: 2500, todayTrades: 5, lastActive: '2024-11-19 14:30'
+    },
+    { 
+      id: 2, name: 'Sarah Johnson', email: 'sarah@example.com', account: 'ACC-10002', 
+      balance: 75000, equity: 76850, freeMargin: 68350, marginLevel: 902, usedMargin: 8500,
+      status: 'active', password: 'client456', accountType: 'business',
+      openPositions: 5, totalProfit: 1850, todayTrades: 12, lastActive: '2024-11-19 15:45'
+    }
+  ]);
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [newClientPassword, setNewClientPassword] = useState('');
+  const [showClientPasswords, setShowClientPasswords] = useState({});
+  const [newClient, setNewClient] = useState({ name: '', email: '', phone: '', initialDeposit: '', password: '', accountType: 'standard' });
+  
+  // Client positions modal states
+  const [showClientPositionsModal, setShowClientPositionsModal] = useState(false);
+  const [clientPositions, setClientPositions] = useState({
+    1: [ // John Smith positions
+      { id: 'P1001', symbol: 'EURUSD', type: 'BUY', lots: 0.5, openPrice: 1.09450, currentPrice: 1.09580, openTime: '2024-11-19 09:15', profit: 65.00, sl: 1.09200, tp: 1.09800 },
+      { id: 'P1002', symbol: 'XAUUSD', type: 'SELL', lots: 0.1, openPrice: 2660.50, currentPrice: 2658.20, openTime: '2024-11-19 11:30', profit: 23.00, sl: 2665.00, tp: 2650.00 },
+      { id: 'P1003', symbol: 'GBPUSD', type: 'BUY', lots: 0.3, openPrice: 1.26420, currentPrice: 1.26485, openTime: '2024-11-19 13:45', profit: 19.50, sl: 1.26200, tp: 1.26700 }
+    ],
+    2: [ // Sarah Johnson positions
+      { id: 'P2001', symbol: 'BTCUSD', type: 'BUY', lots: 0.05, openPrice: 90800.00, currentPrice: 91250.00, openTime: '2024-11-18 08:20', profit: 22.50, sl: 89500.00, tp: 93000.00 },
+      { id: 'P2002', symbol: 'EURUSD', type: 'SELL', lots: 0.8, openPrice: 1.09520, currentPrice: 1.09485, openTime: '2024-11-19 07:10', profit: 28.00, sl: 1.09700, tp: 1.09200 },
+      { id: 'P2003', symbol: 'USDJPY', type: 'BUY', lots: 0.4, openPrice: 149.780, currentPrice: 149.830, openTime: '2024-11-19 10:25', profit: 13.36, sl: 149.500, tp: 150.200 },
+      { id: 'P2004', symbol: 'XAUUSD', type: 'BUY', lots: 0.2, openPrice: 2655.80, currentPrice: 2658.20, openTime: '2024-11-19 12:50', profit: 48.00, sl: 2650.00, tp: 2670.00 },
+      { id: 'P2005', symbol: 'GBPUSD', type: 'SELL', lots: 0.5, openPrice: 1.26550, currentPrice: 1.26478, openTime: '2024-11-19 14:15', profit: 36.00, sl: 1.26750, tp: 1.26250 }
+    ]
+  });
+  
+  // Wallet states
+  const [walletBalance, setWalletBalance] = useState(50000);
   const [showDepositModal, setShowDepositModal] = useState(false);
-  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
-  const [showClientDetailsModal, setShowClientDetailsModal] = useState(false);
-  const [showTransactionHistoryModal, setShowTransactionHistoryModal] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [depositData, setDepositData] = useState({ amount: '', method: 'cash', comment: '' });
-  const [withdrawalData, setWithdrawalData] = useState({ amount: '', method: 'cash', comment: '' });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [transactions, setTransactions] = useState([]);
-  const [transactionStats, setTransactionStats] = useState(null);
-  const [newClient, setNewClient] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    accountType: 'standard',
-    initialBalance: '',
-    address: '',
-    city: '',
-    country: '',
-    zipCode: '',
-    dateOfBirth: '',
-    idNumber: '',
-    businessName: '',
-    businessRegistration: '',
-    taxId: ''
-  });
-  const [tradeData, setTradeData] = useState({
-    product: 'EUR/USD',
-    type: 'buy',
-    volume: '',
-    takeProfit: '',
-    stopLoss: '',
-    comment: ''
-  });
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportDateRange, setExportDateRange] = useState({
-    dateFrom: '',
-    dateTo: ''
-  });
-  const [livePrices, setLivePrices] = useState({
-    'EUR/USD': { bid: 1.08523, ask: 1.08536, change: 0.0023 },
-    'GBP/USD': { bid: 1.26789, ask: 1.26802, change: -0.0015 },
-    'USD/JPY': { bid: 149.875, ask: 149.888, change: 0.125 },
-    'Gold': { bid: 2034.50, ask: 2034.80, change: 5.20 },
-    'BTC/USD': { bid: 42850, ask: 42865, change: -125 },
-    'EUR/GBP': { bid: 0.85632, ask: 0.85645, change: 0.0012 }
-  });
-
-  // Load transactions on mount
-  useEffect(() => {
-    loadTransactions();
-  }, []);
-
-  const loadTransactions = () => {
-    const allTransactions = transactionService.getAllTransactions();
-    setTransactions(allTransactions);
-    const stats = transactionService.getTransactionStats();
-    setTransactionStats(stats);
-  };
-
-  if (!user) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
-  }
-
-  // Pending transaction requests from clients
-  const [pendingRequests, setPendingRequests] = useState([
-    { id: 1, clientId: 1, clientName: 'John Doe', account: 'CLT-001', type: 'deposit', amount: 5000, method: 'bank_transfer', comment: 'Initial capital injection', requestDate: '2025-11-27 10:30', status: 'pending' },
-    { id: 2, clientId: 2, clientName: 'Jane Smith', account: 'CLT-002', type: 'withdrawal', amount: 2500, method: 'bank_transfer', comment: 'Profit withdrawal', requestDate: '2025-11-27 09:15', status: 'pending' },
-    { id: 3, clientId: 3, clientName: 'Bob Johnson', account: 'CLT-003', type: 'deposit', amount: 15000, method: 'credit_card', comment: 'Account funding', requestDate: '2025-11-26 14:20', status: 'pending' },
-    { id: 4, clientId: 4, clientName: 'Sarah Williams', account: 'CLT-004', type: 'withdrawal', amount: 3000, method: 'e_wallet', comment: 'Emergency withdrawal', requestDate: '2025-11-26 11:45', status: 'pending' }
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferToClient, setTransferToClient] = useState('');
+  const [walletTransactions, setWalletTransactions] = useState([
+    { id: 1, date: '2024-11-18 10:00', type: 'deposit', amount: 25000, description: 'Bank deposit', status: 'completed' },
+    { id: 2, date: '2024-11-18 14:30', type: 'transfer', amount: 5000, description: 'Transfer to John Smith', status: 'completed' },
+    { id: 3, date: '2024-11-19 09:15', type: 'deposit', amount: 30000, description: 'Wire transfer', status: 'completed' }
   ]);
 
-  const stats = {
-    totalClients: 45,
-    activeClients: 38,
-    pendingKYC: 3,
-    totalVolume: '$850,000',
-    monthlyCommission: '$12,500',
-    riskAlerts: 2,
-    pendingRequests: pendingRequests.filter(r => r.status === 'pending').length
-  };
+  // Transaction history states
+  const [transactions, setTransactions] = useState([
+    { id: 1, date: '2024-11-15 10:30', type: 'deposit', clientName: 'John Smith', clientAccount: 'ACC-10001', amount: 10000, description: 'Initial deposit', performedBy: user.name },
+    { id: 2, date: '2024-11-16 14:20', type: 'withdrawal', clientName: 'Sarah Johnson', clientAccount: 'ACC-10002', amount: 5000, description: 'Withdrawal request', performedBy: user.name },
+    { id: 3, date: '2024-11-17 09:15', type: 'deposit', clientName: 'John Smith', clientAccount: 'ACC-10001', amount: 15000, description: 'Additional funding', performedBy: user.name },
+    { id: 4, date: '2024-11-18 16:45', type: 'commission', clientName: 'Sarah Johnson', clientAccount: 'ACC-10002', amount: 250, description: 'Trading commission', performedBy: 'System' }
+  ]);
+  const [dateFilterFrom, setDateFilterFrom] = useState('');
+  const [dateFilterTo, setDateFilterTo] = useState('');
 
-  const clients = [
-    {
-      id: 1, name: 'John Doe', account: 'CLT-001', email: 'john@example.com', phone: '+1234567890',
-      balance: 50000, equity: 51200, freeMargin: 48000, margin: 2000, marginLevel: 2560,
-      leverage: '1:100', status: 'active', kyc: 'approved',
-      branch: user.branchName || user.branch,
-      accountType: 'standard', registeredDate: '2024-01-15',
-      totalDeposits: 50000, totalWithdrawals: 0, totalTrades: 45, profitLoss: 1200
-    },
-    {
-      id: 2, name: 'Jane Smith', account: 'CLT-002', email: 'jane@example.com', phone: '+1234567891',
-      balance: 75000, equity: 76500, freeMargin: 72000, margin: 4500, marginLevel: 1700,
-      leverage: '1:100', status: 'active', kyc: 'approved',
-      branch: user.branchName || user.branch,
-      accountType: 'business', registeredDate: '2024-02-20',
-      totalDeposits: 75000, totalWithdrawals: 0, totalTrades: 62, profitLoss: 1500
-    },
-    {
-      id: 3, name: 'Bob Wilson', account: 'CLT-003', email: 'bob@example.com', phone: '+1234567892',
-      balance: 32000, equity: 31800, freeMargin: 28000, margin: 3800, marginLevel: 837,
-      leverage: '1:50', status: 'active', kyc: 'pending',
-      branch: user.branchName || user.branch,
-      accountType: 'standard', registeredDate: '2024-03-10',
-      totalDeposits: 32000, totalWithdrawals: 0, totalTrades: 28, profitLoss: -200
-    },
-    {
-      id: 4, name: 'Alice Brown', account: 'CLT-004', email: 'alice@example.com', phone: '+1234567893',
-      balance: 95000, equity: 96200, freeMargin: 90000, margin: 6200, marginLevel: 1551,
-      leverage: '1:200', status: 'inactive', kyc: 'approved',
-      branch: user.branchName || user.branch,
-      accountType: 'standard', registeredDate: '2024-01-05',
-      totalDeposits: 95000, totalWithdrawals: 0, totalTrades: 78, profitLoss: 1200
-    }
-  ];
-
-  const openPositions = [
-    { id: 1, clientId: 1, product: 'EUR/USD', type: 'buy', volume: 0.5, openPrice: 1.08500, currentPrice: 1.08536, profit: 180, openTime: '10:30 AM' },
-    { id: 2, clientId: 1, product: 'Gold', type: 'buy', volume: 0.2, openPrice: 2030.00, currentPrice: 2034.50, profit: 900, openTime: '11:15 AM' },
-    { id: 3, clientId: 2, product: 'GBP/USD', type: 'sell', volume: 1.0, openPrice: 1.26850, currentPrice: 1.26802, profit: 480, openTime: '09:45 AM' },
-    { id: 4, clientId: 2, product: 'BTC/USD', type: 'buy', volume: 0.1, openPrice: 42500, currentPrice: 42850, profit: 3500, openTime: '08:20 AM' },
-    { id: 5, clientId: 3, product: 'USD/JPY', type: 'buy', volume: 0.3, openPrice: 150.200, currentPrice: 149.875, profit: -975, openTime: '12:00 PM' }
-  ];
-
-  const tradeHistory = [
-    { id: 1, clientId: 1, product: 'EUR/USD', type: 'buy', volume: 1.0, openPrice: 1.08200, closePrice: 1.08450, profit: 250, commission: 10, netProfit: 240, openTime: '2024-11-20 09:30', closeTime: '2024-11-20 14:15', duration: '4h 45m' },
-    { id: 2, clientId: 1, product: 'Gold', type: 'sell', volume: 0.5, openPrice: 2035.00, closePrice: 2033.50, profit: 750, commission: 15, netProfit: 735, openTime: '2024-11-19 10:00', closeTime: '2024-11-19 16:30', duration: '6h 30m' },
-    { id: 3, clientId: 1, product: 'BTC/USD', type: 'buy', volume: 0.05, openPrice: 42000, closePrice: 41850, profit: -750, commission: 20, netProfit: -770, openTime: '2024-11-18 11:20', closeTime: '2024-11-18 15:45', duration: '4h 25m' },
-    { id: 4, clientId: 2, product: 'GBP/USD', type: 'buy', volume: 1.5, openPrice: 1.26500, closePrice: 1.26820, profit: 480, commission: 15, netProfit: 465, openTime: '2024-11-21 08:15', closeTime: '2024-11-21 13:00', duration: '4h 45m' },
-    { id: 5, clientId: 2, product: 'EUR/GBP', type: 'sell', volume: 2.0, openPrice: 0.85700, closePrice: 0.85620, profit: 160, commission: 20, netProfit: 140, openTime: '2024-11-20 09:00', closeTime: '2024-11-20 11:30', duration: '2h 30m' },
-    { id: 6, clientId: 2, product: 'USD/JPY', type: 'buy', volume: 0.8, openPrice: 149.500, closePrice: 149.850, profit: 280, commission: 8, netProfit: 272, openTime: '2024-11-19 10:30', closeTime: '2024-11-19 15:00', duration: '4h 30m' },
-    { id: 7, clientId: 3, product: 'EUR/USD', type: 'sell', volume: 0.7, openPrice: 1.08600, closePrice: 1.08750, profit: -105, commission: 7, netProfit: -112, openTime: '2024-11-21 12:00', closeTime: '2024-11-21 16:15', duration: '4h 15m' },
-    { id: 8, clientId: 3, product: 'Gold', type: 'buy', volume: 0.3, openPrice: 2031.00, closePrice: 2034.00, profit: 900, commission: 9, netProfit: 891, openTime: '2024-11-20 08:45', closeTime: '2024-11-20 14:00', duration: '5h 15m' },
-    { id: 9, clientId: 4, product: 'BTC/USD', type: 'sell', volume: 0.08, openPrice: 43000, closePrice: 42800, profit: 1600, commission: 16, netProfit: 1584, openTime: '2024-11-19 09:30', closeTime: '2024-11-19 17:00', duration: '7h 30m' },
-    { id: 10, clientId: 4, product: 'EUR/USD', type: 'buy', volume: 1.2, openPrice: 1.08100, closePrice: 1.08350, profit: 300, commission: 12, netProfit: 288, openTime: '2024-11-18 10:15', closeTime: '2024-11-18 15:45', duration: '5h 30m' }
-  ];
-
-  const transactionHistory = [
-    { id: 1, clientId: 1, type: 'deposit', amount: 25000, method: 'bank_transfer', status: 'completed', date: '2024-11-15 10:30', comment: 'Initial deposit' },
-    { id: 2, clientId: 1, type: 'deposit', amount: 25000, method: 'bank_transfer', status: 'completed', date: '2024-11-18 14:20', comment: 'Additional funding' },
-    { id: 3, clientId: 1, type: 'trade', amount: 250, method: 'trading', status: 'completed', date: '2024-11-20 14:15', comment: 'EUR/USD profit' },
-    { id: 4, clientId: 2, type: 'deposit', amount: 50000, method: 'credit_card', status: 'completed', date: '2024-11-10 09:15', comment: 'Business account funding' },
-    { id: 5, clientId: 2, type: 'deposit', amount: 25000, method: 'bank_transfer', status: 'completed', date: '2024-11-16 11:00', comment: 'Additional capital' },
-    { id: 6, clientId: 2, type: 'trade', amount: 480, method: 'trading', status: 'completed', date: '2024-11-21 13:00', comment: 'GBP/USD profit' },
-    { id: 7, clientId: 3, type: 'deposit', amount: 32000, method: 'bank_transfer', status: 'completed', date: '2024-11-12 15:45', comment: 'Account opening' },
-    { id: 8, clientId: 3, type: 'trade', amount: -105, method: 'trading', status: 'completed', date: '2024-11-21 16:15', comment: 'EUR/USD loss' },
-    { id: 9, clientId: 4, type: 'deposit', amount: 95000, method: 'bank_transfer', status: 'completed', date: '2024-11-08 13:20', comment: 'Large account opening' },
-    { id: 10, clientId: 4, type: 'withdrawal', amount: 5000, method: 'bank_transfer', status: 'completed', date: '2024-11-22 10:00', comment: 'Partial withdrawal' }
-  ];
-
-  const recentTrades = [
-    { id: 1, client: 'John Doe', pair: 'EUR/USD', type: 'Buy', amount: '$5,000', profit: '+$250', time: '10:30 AM' },
-    { id: 2, client: 'Jane Smith', pair: 'GBP/USD', type: 'Sell', amount: '$8,000', profit: '+$480', time: '11:15 AM' },
-    { id: 3, client: 'Bob Wilson', pair: 'USD/JPY', type: 'Buy', amount: '$3,500', profit: '-$120', time: '12:45 PM' }
-  ];
-
-  const kycPending = [
-    { id: 1, name: 'Bob Wilson', account: 'CLT-003', submitted: '2 days ago', documents: 3 },
-    { id: 2, name: 'Charlie Davis', account: 'CLT-005', submitted: '5 days ago', documents: 2 },
-    { id: 3, name: 'Eva Martinez', account: 'CLT-006', submitted: '1 week ago', documents: 4 }
-  ];
-
-  const handleClientInputChange = (field, value) => {
-    setNewClient(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleOpenTradeModal = (client) => {
-    setSelectedClient(client);
-    setShowTradeModal(true);
-    // Simulate live price updates
-    const priceInterval = setInterval(() => {
-      setLivePrices(prev => updateLivePrices(prev));
-    }, 2000);
-    globalThis.tradePriceInterval = priceInterval;
-  };
-
-  const handleTradeInputChange = (field, value) => {
-    setTradeData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleExecuteTrade = () => {
-    const validation = validateAmount(tradeData.volume);
-    if (!validation.isValid) {
-      alert(validation.error);
-      return;
-    }
-
-    const price = livePrices[tradeData.product];
-    const executionPrice = tradeData.type === 'buy' ? price.ask : price.bid;
-
-    const message = formatTransactionMessage('trade', {
-      clientName: selectedClient.name,
-      product: tradeData.product,
-      tradeType: tradeData.type.toUpperCase(),
-      volume: tradeData.volume,
-      price: executionPrice,
-      takeProfit: tradeData.takeProfit,
-      stopLoss: tradeData.stopLoss
-    });
-    alert(message);
-
-    // Clear interval and reset
-    if (globalThis.tradePriceInterval) {
-      clearInterval(globalThis.tradePriceInterval);
-    }
-
-    setShowTradeModal(false);
-    setSelectedClient(null);
-    setTradeData({
-      product: 'EUR/USD',
-      type: 'buy',
-      volume: '',
-      takeProfit: '',
-      stopLoss: '',
-      comment: ''
-    });
-  };
-
-  const handleOpenDepositModal = (client) => {
-    setSelectedClient(client);
-    setShowDepositModal(true);
-  };
-
-  const handleExecuteDeposit = () => {
-    const validation = validateAmount(depositData.amount);
-    if (!validation.isValid) {
-      alert(validation.error);
-      return;
-    }
-
-    try {
-      // Create transaction using the professional transaction service
-      const transaction = transactionService.createTransaction({
-        type: TRANSACTION_TYPE.DEPOSIT,
-        amount: depositData.amount,
-        clientId: selectedClient.id,
-        clientName: selectedClient.name,
-        clientAccount: selectedClient.account,
-        paymentMethod: depositData.method,
-        comment: depositData.comment,
-        initiatedBy: user.id,
-        initiatorRole: INITIATOR_ROLE.ADMIN,
-        initiatorName: user.name,
-        branch: user.branchName || user.branch
-      });
-
-      // Reload transactions
-      loadTransactions();
-
-      alert(`✅ Deposit Transaction Created!
-
-Transaction ID: ${transaction.id}
-Client: ${selectedClient.name}
-Amount: $${Number.parseFloat(depositData.amount).toLocaleString()}
-Status: Pending Manager Approval
-
-The transaction has been created and is awaiting manager approval.`);
-
-      setShowDepositModal(false);
-      setSelectedClient(null);
-      setDepositData({ amount: '', method: 'cash', comment: '' });
-    } catch (error) {
-      alert(`❌ Error: ${error.message}`);
-    }
-  };
-
-  const handleOpenWithdrawalModal = (client) => {
-    setSelectedClient(client);
-    setShowWithdrawalModal(true);
-  };
-
-  const handleExecuteWithdrawal = () => {
-    const validation = validateWithdrawal(withdrawalData.amount, selectedClient.balance);
-    if (!validation.isValid) {
-      alert(validation.error);
-      return;
-    }
-
-    try {
-      // Create transaction using the professional transaction service
-      const transaction = transactionService.createTransaction({
-        type: TRANSACTION_TYPE.WITHDRAWAL,
-        amount: withdrawalData.amount,
-        clientId: selectedClient.id,
-        clientName: selectedClient.name,
-        clientAccount: selectedClient.account,
-        paymentMethod: withdrawalData.method,
-        comment: withdrawalData.comment,
-        initiatedBy: user.id,
-        initiatorRole: INITIATOR_ROLE.ADMIN,
-        initiatorName: user.name,
-        branch: user.branchName || user.branch
-      });
-
-      // Reload transactions
-      loadTransactions();
-
-      alert(`✅ Withdrawal Transaction Created!
-
-Transaction ID: ${transaction.id}
-Client: ${selectedClient.name}
-Amount: $${Number.parseFloat(withdrawalData.amount).toLocaleString()}
-Status: Pending Manager Approval
-
-The transaction has been created and is awaiting manager approval.`);
-
-      setShowWithdrawalModal(false);
-      setSelectedClient(null);
-      setWithdrawalData({ amount: '', method: 'cash', comment: '' });
-    } catch (error) {
-      alert(`❌ Error: ${error.message}`);
-    }
-  };
-
-  const handleViewTransactionHistory = () => {
-    setShowTransactionHistoryModal(true);
-  };
-
-  const handleViewTransactionDetails = (transaction) => {
-    setSelectedTransaction(transaction);
-  };
-
-  const handlePrintReceipt = (transaction) => {
-    printReceipt(transaction, {
-      name: user.branchName || user.branch,
-      address: ''
-    });
-  };
-
-  const handleOpenClientDetails = (client) => {
-    setSelectedClient(client);
-    setShowClientDetailsModal(true);
-  };
-
-  const handleApproveRequest = (request) => {
-    if (globalThis.confirm(`Approve ${request.type} request of $${request.amount.toLocaleString()} for ${request.clientName}?`)) {
-      alert(`Request Approved!
-
-Client: ${request.clientName}
-Type: ${request.type.toUpperCase()}
-Amount: $${request.amount.toLocaleString()}
-
-The transaction has been approved and sent to the Manager for final processing.`);
-
-      // Transaction approved and sent to Manager for final processing
-
-      // Remove from pending list
-      setPendingRequests(pendingRequests.filter(r => r.id !== request.id));
-    }
-  };
-
-  const handleRejectRequest = (request) => {
-    const reason = prompt(`Enter reason for rejecting this ${request.type} request:`);
-    if (reason) {
-      alert(`Request Rejected!
-
-Client: ${request.clientName}
-Type: ${request.type.toUpperCase()}
-Amount: $${request.amount.toLocaleString()}
-Reason: ${reason}
-
-The client will be notified of the rejection.`);
-
-      // Transaction rejected, client will be notified
-
-      // Remove from pending list
-      setPendingRequests(pendingRequests.filter(r => r.id !== request.id));
-    }
-  };
-
-  const handleOpenExportModal = (client) => {
-    setSelectedClient(client);
-    // Set default dates: last 30 days to today
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-
-    setExportDateRange({
-      dateFrom: thirtyDaysAgo.toISOString().split('T')[0],
-      dateTo: today.toISOString().split('T')[0]
-    });
-    setShowExportModal(true);
-  };
-
-  const handleExportClientReport = (client, dateFrom, dateTo) => {
-    // Filter by date range
-    const clientTrades = filterByDateRange(
-      tradeHistory.filter(t => t.clientId === client.id),
-      dateFrom,
-      dateTo
-    );
-
-    const clientTransactions = filterByDateRange(
-      transactionHistory.filter(t => t.clientId === client.id),
-      dateFrom,
-      dateTo
-    );
-
-    const clientPositions = openPositions.filter(p => p.clientId === client.id);
-
-    // Calculate statistics using helpers
-    const tradingStats = calculateTradingStats(clientTrades);
-    const depositStats = calculateDepositWithdrawalStats(clientTransactions);
-
-    const { totalProfit, totalCommission, totalNetProfit, winRate, avgTrade, profitFactor } = tradingStats;
-    const { totalDeposits, totalWithdrawals } = depositStats;
-
-    const reportHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Client Report - ${client.name}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }
-          .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #2563eb; padding-bottom: 20px; }
-          .header h1 { color: #1e293b; margin: 0; font-size: 32px; }
-          .header p { color: #64748b; margin: 5px 0; }
-          .section { margin: 30px 0; }
-          .section-title { background: #2563eb; color: white; padding: 12px 20px; margin-bottom: 15px; font-size: 18px; font-weight: bold; }
-          .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 20px 0; }
-          .info-card { border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; background: #f8fafc; }
-          .info-label { color: #64748b; font-size: 13px; margin-bottom: 5px; }
-          .info-value { color: #1e293b; font-size: 18px; font-weight: bold; }
-          .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
-          .metric-card { border: 1px solid #e2e8f0; padding: 15px; text-align: center; border-radius: 8px; }
-          .metric-label { color: #64748b; font-size: 12px; margin-bottom: 8px; }
-          .metric-value { font-size: 24px; font-weight: bold; }
-          .positive { color: #10b981; }
-          .negative { color: #ef4444; }
-          .neutral { color: #2563eb; }
-          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-          th { background: #f1f5f9; color: #475569; padding: 12px; text-align: left; font-size: 13px; border-bottom: 2px solid #e2e8f0; }
-          td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b; font-size: 14px; }
-          tr:hover { background: #f8fafc; }
-          .badge { padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; }
-          .badge-buy { background: #dcfce7; color: #16a34a; }
-          .badge-sell { background: #fee2e2; color: #dc2626; }
-          .badge-deposit { background: #dbeafe; color: #2563eb; }
-          .badge-withdrawal { background: #fed7aa; color: #ea580c; }
-          .badge-trade { background: #e9d5ff; color: #9333ea; }
-          .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 12px; }
-          @media print { body { padding: 0; background: white; } .container { box-shadow: none; } }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Client Account Report</h1>
-            <p>Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-            <p>Branch: ${client.branch}</p>
-            ${dateFrom && dateTo ? `<p style="color: #2563eb; font-weight: bold;">Report Period: ${new Date(dateFrom).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })} - ${new Date(dateTo).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>` : ''}
-          </div>
-
-          <div class="section">
-            <div class="section-title">Client Information</div>
-            <div class="info-grid">
-              <div class="info-card">
-                <div class="info-label">Client Name</div>
-                <div class="info-value">${client.name}</div>
-              </div>
-              <div class="info-card">
-                <div class="info-label">Account Number</div>
-                <div class="info-value">${client.account}</div>
-              </div>
-              <div class="info-card">
-                <div class="info-label">Email</div>
-                <div class="info-value" style="font-size: 14px;">${client.email}</div>
-              </div>
-              <div class="info-card">
-                <div class="info-label">Phone</div>
-                <div class="info-value" style="font-size: 14px;">${client.phone}</div>
-              </div>
-              <div class="info-card">
-                <div class="info-label">Account Type</div>
-                <div class="info-value" style="text-transform: capitalize;">${client.accountType}</div>
-              </div>
-              <div class="info-card">
-                <div class="info-label">Registration Date</div>
-                <div class="info-value" style="font-size: 14px;">${client.registeredDate}</div>
-              </div>
-              <div class="info-card">
-                <div class="info-label">Leverage</div>
-                <div class="info-value">${client.leverage}</div>
-              </div>
-              <div class="info-card">
-                <div class="info-label">KYC Status</div>
-                <div class="info-value" style="text-transform: capitalize; color: ${client.kyc === 'approved' ? '#10b981' : '#f59e0b'};">${client.kyc}</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="section">
-            <div class="section-title">Account Metrics</div>
-            <div class="metrics-grid">
-              <div class="metric-card">
-                <div class="metric-label">Balance</div>
-                <div class="metric-value neutral">$${client.balance.toLocaleString()}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Equity</div>
-                <div class="metric-value ${client.equity >= client.balance ? 'positive' : 'negative'}">$${client.equity.toLocaleString()}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Free Margin</div>
-                <div class="metric-value neutral">$${client.freeMargin.toLocaleString()}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Margin Level</div>
-                <div class="metric-value ${getMarginLevelColor(client.marginLevel)}">${client.marginLevel.toFixed(2)}%</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="section">
-            <div class="section-title">Trading Summary</div>
-            <div class="metrics-grid">
-              <div class="metric-card">
-                <div class="metric-label">Total Trades</div>
-                <div class="metric-value neutral">${clientTrades.length}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Open Positions</div>
-                <div class="metric-value neutral">${clientPositions.length}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Gross Profit/Loss</div>
-                <div class="metric-value ${totalProfit >= 0 ? 'positive' : 'negative'}">${totalProfit >= 0 ? '+' : ''}$${totalProfit.toFixed(2)}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Total Commission</div>
-                <div class="metric-value" style="color: #ea580c;">-$${totalCommission.toFixed(2)}</div>
-              </div>
-            </div>
-            <div class="metrics-grid" style="margin-top: 15px;">
-              <div class="metric-card">
-                <div class="metric-label">Net Profit/Loss</div>
-                <div class="metric-value ${totalNetProfit >= 0 ? 'positive' : 'negative'}">${totalNetProfit >= 0 ? '+' : ''}$${totalNetProfit.toFixed(2)}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Win Rate</div>
-                <div class="metric-value neutral">${winRate}%</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Average Trade</div>
-                <div class="metric-value ${totalNetProfit >= 0 ? 'positive' : 'negative'}">$${avgTrade}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Profit Factor</div>
-                <div class="metric-value neutral">${profitFactor}</div>
-              </div>
-            </div>
-          </div>
-
-          ${clientPositions.length > 0 ? `
-          <div class="section">
-            <div class="section-title">Open Positions</div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Type</th>
-                  <th>Volume</th>
-                  <th>Open Price</th>
-                  <th>Current Price</th>
-                  <th>Profit/Loss</th>
-                  <th>Open Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${clientPositions.map(pos => `
-                  <tr>
-                    <td style="font-weight: bold;">${pos.product}</td>
-                    <td><span class="badge badge-${pos.type}">${pos.type.toUpperCase()}</span></td>
-                    <td>${pos.volume} lots</td>
-                    <td>${pos.openPrice}</td>
-                    <td>${pos.currentPrice}</td>
-                    <td style="font-weight: bold; color: ${pos.profit >= 0 ? '#10b981' : '#ef4444'};">${pos.profit >= 0 ? '+' : ''}$${pos.profit.toFixed(2)}</td>
-                    <td>${pos.openTime}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-          ` : ''}
-
-          <div class="section">
-            <div class="section-title">Trading History (Last ${clientTrades.length} Trades)</div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Type</th>
-                  <th>Volume</th>
-                  <th>Open Price</th>
-                  <th>Close Price</th>
-                  <th>Gross P/L</th>
-                  <th>Commission</th>
-                  <th>Net P/L</th>
-                  <th>Duration</th>
-                  <th>Close Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${clientTrades.map(trade => `
-                  <tr>
-                    <td style="font-weight: bold;">${trade.product}</td>
-                    <td><span class="badge badge-${trade.type}">${trade.type.toUpperCase()}</span></td>
-                    <td>${trade.volume} lots</td>
-                    <td>${trade.openPrice}</td>
-                    <td>${trade.closePrice}</td>
-                    <td style="font-weight: bold; color: ${trade.profit >= 0 ? '#10b981' : '#ef4444'};">${trade.profit >= 0 ? '+' : ''}$${trade.profit.toFixed(2)}</td>
-                    <td style="color: #ea580c;">-$${trade.commission.toFixed(2)}</td>
-                    <td style="font-weight: bold; color: ${trade.netProfit >= 0 ? '#10b981' : '#ef4444'};">${trade.netProfit >= 0 ? '+' : ''}$${trade.netProfit.toFixed(2)}</td>
-                    <td>${trade.duration}</td>
-                    <td>${trade.closeTime}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="section">
-            <div class="section-title">Transaction History</div>
-            <div class="metrics-grid">
-              <div class="metric-card">
-                <div class="metric-label">Total Deposits</div>
-                <div class="metric-value positive">$${totalDeposits.toLocaleString()}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Total Withdrawals</div>
-                <div class="metric-value" style="color: #ea580c;">$${totalWithdrawals.toLocaleString()}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Net Deposits</div>
-                <div class="metric-value neutral">$${(totalDeposits - totalWithdrawals).toLocaleString()}</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Transactions</div>
-                <div class="metric-value neutral">${clientTransactions.length}</div>
-              </div>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Amount</th>
-                  <th>Method</th>
-                  <th>Status</th>
-                  <th>Comment</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${clientTransactions.map(transaction => `
-                  <tr>
-                    <td>${transaction.date}</td>
-                    <td><span class="badge badge-${transaction.type}">${transaction.type.toUpperCase()}</span></td>
-                    <td style="font-weight: bold; color: ${getTransactionColor(transaction.type, transaction.amount)};">${transaction.amount >= 0 ? '+' : ''}$${transaction.amount.toLocaleString()}</td>
-                    <td style="text-transform: capitalize;">${transaction.method.replace('_', ' ')}</td>
-                    <td style="text-transform: capitalize; color: #10b981;">${transaction.status}</td>
-                    <td>${transaction.comment}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="footer">
-            <p><strong>Imtiaz Trading Platform</strong></p>
-            <p>This report is confidential and intended solely for the named client.</p>
-            <p>Generated by ${user.name} (${user.role}) from ${user.branchName || user.branch}</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(reportHTML);
-    printWindow.document.close();
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
-
-    setShowExportModal(false);
+  const handleCopyReferral = () => {
+    navigator.clipboard.writeText(user.referralCode);
+    setReferralCopied(true);
+    setTimeout(() => setReferralCopied(false), 2000);
   };
 
   const handleAddClient = () => {
-    // Validate required fields
-    if (!newClient.name || !newClient.email || !newClient.phone || !newClient.password || !newClient.confirmPassword || !newClient.initialBalance) {
-      alert('Please fill in all required fields');
-      return;
-    }
+    if (!newClient.name || !newClient.email) { alert('Please fill required fields'); return; }
+    if (!newClient.password || newClient.password.length < 6) { alert('Password must be at least 6 characters'); return; }
+    const accountNumber = `ACC-${Math.floor(10000 + Math.random() * 90000)}`;
+    const accountTypeName = newClient.accountType === 'business' ? 'Business' : 'Standard';
+    setClients([...clients, { id: Date.now(), name: newClient.name, email: newClient.email, phone: newClient.phone, account: accountNumber, balance: parseFloat(newClient.initialDeposit) || 0, status: 'active', password: newClient.password, accountType: newClient.accountType }]);
+    alert(`✅ Client added successfully!\n\nAccount: ${accountNumber}\nAccount Type: ${accountTypeName}\nEmail: ${newClient.email}\nPassword: ${newClient.password}\n\nPlease share these credentials with the client.`);
+    setNewClient({ name: '', email: '', phone: '', initialDeposit: '', password: '', accountType: 'standard' });
+    setShowAddClient(false);
+  };
 
-    // Validate password match
-    if (newClient.password !== newClient.confirmPassword) {
-      alert('Passwords do not match');
-      return;
-    }
+  const handleFreezeClient = (id) => {
+    setClients(clients.map(c => c.id === id ? {...c, status: c.status === 'active' ? 'frozen' : 'active'} : c));
+  };
 
-    // Validate password strength
-    if (newClient.password.length < 6) {
-      alert('Password must be at least 6 characters long');
-      return;
-    }
+  const handleOpenChangePassword = (client) => {
+    setSelectedClient(client);
+    setNewClientPassword('');
+    setShowChangePasswordModal(true);
+  };
 
-    if (newClient.accountType === 'business' && (!newClient.businessName || !newClient.businessRegistration)) {
-      alert('Please fill in all business account details');
-      return;
-    }
+  const handleViewClientPositions = (client) => {
+    setSelectedClient(client);
+    setShowClientPositionsModal(true);
+  };
 
-    // Generate account number
-    const accountNumber = `CLT-${String(clients.length + 1).padStart(3, '0')}`;
-
-    // New client created by admin with pending KYC status
-
-    alert(`Client ${newClient.name} created successfully!\nAccount Number: ${accountNumber}\nEmail: ${newClient.email}\nPassword has been set by admin.`);
-
-    // Reset form and close modal
-    setNewClient({
-      name: '',
-      email: '',
-      phone: '',
-      password: '',
-      confirmPassword: '',
-      accountType: 'standard',
-      initialBalance: '',
-      address: '',
-      city: '',
-      country: '',
-      zipCode: '',
-      dateOfBirth: '',
-      idNumber: '',
-      businessName: '',
-      businessRegistration: '',
-      taxId: ''
+  const handleCloseClientPosition = (positionId) => {
+    if (!confirm('Are you sure you want to close this position?')) return;
+    
+    const position = clientPositions[selectedClient.id].find(p => p.id === positionId);
+    if (!position) return;
+    
+    // Remove position from client's positions
+    setClientPositions({
+      ...clientPositions,
+      [selectedClient.id]: clientPositions[selectedClient.id].filter(p => p.id !== positionId)
     });
-    setShowAddClientModal(false);
+    
+    // Update client's open positions count and profit
+    setClients(clients.map(c => {
+      if (c.id === selectedClient.id) {
+        return {
+          ...c,
+          openPositions: c.openPositions - 1,
+          totalProfit: c.totalProfit - position.profit,
+          equity: c.equity - position.profit
+        };
+      }
+      return c;
+    }));
+    
+    alert(`✅ Position ${positionId} closed successfully!\n\nProfit/Loss: $${position.profit.toFixed(2)}\nClosed at: ${position.currentPrice}`);
+  };
+
+  const handleChangePassword = () => {
+    if (!newClientPassword || newClientPassword.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+    setClients(clients.map(c => 
+      c.id === selectedClient.id ? {...c, password: newClientPassword} : c
+    ));
+    alert(`✅ Password updated successfully!\n\nAccount: ${selectedClient.account}\nNew Password: ${newClientPassword}`);
+    setNewClientPassword('');
+    setShowChangePasswordModal(false);
+    setSelectedClient(null);
+  };
+
+  const toggleShowPassword = (clientId) => {
+    setShowClientPasswords(prev => ({
+      ...prev,
+      [clientId]: !prev[clientId]
+    }));
+  };
+
+  // Wallet functions
+  const handleWalletDeposit = () => {
+    const amount = parseFloat(depositAmount);
+    if (!amount || amount <= 0) { alert('Invalid amount'); return; }
+    setWalletBalance(walletBalance + amount);
+    setWalletTransactions([{ id: Date.now(), date: new Date().toLocaleString(), type: 'deposit', amount, description: 'Wallet deposit', status: 'completed' }, ...walletTransactions]);
+    setDepositAmount('');
+    setShowDepositModal(false);
+    alert(`✅ Deposited $${amount.toLocaleString()} to wallet`);
+  };
+
+  const handleWalletWithdraw = () => {
+    const amount = parseFloat(withdrawAmount);
+    if (!amount || amount <= 0) { alert('Invalid amount'); return; }
+    if (amount > walletBalance) { alert('Insufficient wallet balance'); return; }
+    setWalletBalance(walletBalance - amount);
+    setWalletTransactions([{ id: Date.now(), date: new Date().toLocaleString(), type: 'withdrawal', amount, description: 'Wallet withdrawal', status: 'completed' }, ...walletTransactions]);
+    setWithdrawAmount('');
+    setShowWithdrawModal(false);
+    alert(`✅ Withdrew $${amount.toLocaleString()} from wallet`);
+  };
+
+  const handleTransferToClient = () => {
+    const amount = parseFloat(transferAmount);
+    if (!amount || amount <= 0) { alert('Invalid amount'); return; }
+    if (amount > walletBalance) { alert('Insufficient wallet balance'); return; }
+    if (!transferToClient) { alert('Please select a client'); return; }
+    
+    const client = clients.find(c => c.id === parseInt(transferToClient));
+    if (!client) { alert('Client not found'); return; }
+    
+    setWalletBalance(walletBalance - amount);
+    setClients(clients.map(c => c.id === client.id ? {...c, balance: c.balance + amount} : c));
+    setWalletTransactions([{ id: Date.now(), date: new Date().toLocaleString(), type: 'transfer', amount, description: `Transfer to ${client.name}`, status: 'completed' }, ...walletTransactions]);
+    setTransactions([{ id: Date.now(), date: new Date().toLocaleString(), type: 'deposit', clientName: client.name, clientAccount: client.account, amount, description: `Admin transfer from wallet`, performedBy: user.name }, ...transactions]);
+    
+    setTransferAmount('');
+    setTransferToClient('');
+    setShowTransferModal(false);
+    alert(`✅ Transferred $${amount.toLocaleString()} to ${client.name}`);
+  };
+
+  // Transaction history functions
+  const getFilteredTransactions = () => {
+    return transactions.filter(t => {
+      const transDate = new Date(t.date);
+      const fromDate = dateFilterFrom ? new Date(dateFilterFrom) : null;
+      const toDate = dateFilterTo ? new Date(dateFilterTo + 'T23:59:59') : null;
+      
+      if (fromDate && transDate < fromDate) return false;
+      if (toDate && transDate > toDate) return false;
+      return true;
+    });
+  };
+
+  const exportTransactionsToPDF = () => {
+    const filtered = getFilteredTransactions();
+    const dateRange = dateFilterFrom && dateFilterTo 
+      ? `${dateFilterFrom} to ${dateFilterTo}` 
+      : dateFilterFrom 
+        ? `From ${dateFilterFrom}` 
+        : dateFilterTo 
+          ? `Until ${dateFilterTo}` 
+          : 'All transactions';
+    
+    let content = `${user.branchName} - Transaction History Report\n`;
+    content += `Generated: ${new Date().toLocaleString()}\n`;
+    content += `Period: ${dateRange}\n`;
+    content += `Admin: ${user.name}\n`;
+    content += `\n${'='.repeat(80)}\n\n`;
+    
+    filtered.forEach(t => {
+      content += `Date: ${t.date}\n`;
+      content += `Type: ${t.type.toUpperCase()}\n`;
+      content += `Client: ${t.clientName} (${t.clientAccount})\n`;
+      content += `Amount: $${t.amount.toLocaleString()}\n`;
+      content += `Description: ${t.description}\n`;
+      content += `Performed By: ${t.performedBy}\n`;
+      content += `${'-'.repeat(80)}\n\n`;
+    });
+    
+    const deposits = filtered.filter(t => t.type === 'deposit').reduce((sum, t) => sum + t.amount, 0);
+    const withdrawals = filtered.filter(t => t.type === 'withdrawal').reduce((sum, t) => sum + t.amount, 0);
+    const commissions = filtered.filter(t => t.type === 'commission').reduce((sum, t) => sum + t.amount, 0);
+    
+    content += `\n${'='.repeat(80)}\n`;
+    content += `SUMMARY\n`;
+    content += `${'='.repeat(80)}\n`;
+    content += `Total Deposits: $${deposits.toLocaleString()}\n`;
+    content += `Total Withdrawals: $${withdrawals.toLocaleString()}\n`;
+    content += `Total Commissions: $${commissions.toLocaleString()}\n`;
+    content += `Net Flow: $${(deposits - withdrawals).toLocaleString()}\n`;
+    
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions_${dateFilterFrom || 'all'}_${dateFilterTo || 'all'}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {user.branchLogo && (
-                <img
-                  src={user.branchLogo}
-                  alt={user.branchName || user.branch}
-                  className="h-12 w-12 object-contain bg-white rounded p-1"
-                  onError={(e) => e.target.style.display = 'none'}
-                />
-              )}
-              <div>
-                <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-                <p className="text-gray-400 text-sm">
-                  {user.name} • {user.branchName || user.branch}
-                </p>
-              </div>
+    <div className="flex h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+      <div className="w-72 bg-slate-800/50 border-r border-slate-700 flex flex-col">
+        <div className="p-6 border-b border-slate-700">
+          {branch?.logo ? (
+            <div className="mb-3">
+              <img src={branch.logo} alt={branch.name} className="w-16 h-16 object-contain bg-white rounded-lg p-2 mb-2" />
             </div>
-            <div className="flex items-center gap-4">
-              <button className="p-2 text-gray-400 hover:text-white transition-colors">
-                <Bell className="w-5 h-5" />
-              </button>
-              <button className="p-2 text-gray-400 hover:text-white transition-colors">
-                <Settings className="w-5 h-5" />
-              </button>
-              <button
-                onClick={logout}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </button>
-            </div>
-          </div>
+          ) : null}
+          <div className="text-2xl font-bold text-blue-400">Admin Panel</div>
+          <div className="text-xs text-slate-400">{branch?.name || user.branchName}</div>
         </div>
-      </header>
-
-      {/* Navigation Tabs */}
-      <div className="bg-gray-800 border-b border-gray-700">
-        <div className="px-6">
-          <div className="flex gap-6">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
-                activeTab === 'overview'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4" />
-                Overview
-              </div>
+        <nav className="flex-1 p-4 space-y-2">
+          {['overview', 'clients', 'client-tracking', 'wallet', 'transactions'].map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full px-4 py-3 rounded-lg text-left ${activeTab === tab ? 'bg-blue-600' : 'bg-slate-700'}`}>
+              {tab === 'client-tracking' ? 'Client Tracking' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
-            <button
-              onClick={() => setActiveTab('clients')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
-                activeTab === 'clients'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Clients
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('requests')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
-                activeTab === 'requests'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />
-                Pending Requests
-                {stats.pendingRequests > 0 && (
-                  <span className="bg-yellow-500 text-black text-xs px-2 py-0.5 rounded-full font-bold">
-                    {stats.pendingRequests}
-                  </span>
-                )}
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('kyc')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
-                activeTab === 'kyc'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                KYC/AML
-                {stats.pendingKYC > 0 && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                    {stats.pendingKYC}
-                  </span>
-                )}
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('clientTracking')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
-                activeTab === 'clientTracking'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4" />
-                Client Tracking
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('transactions')}
-              className={`py-4 px-2 border-b-2 transition-colors ${
-                activeTab === 'transactions'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <History className="w-4 h-4" />
-                Transactions
-                {transactionStats && transactionStats.pending > 0 && (
-                  <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                    {transactionStats.pending}
-                  </span>
-                )}
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('reports')}
-              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'reports'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Reports
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('adminUsers')}
-              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'adminUsers'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <UserCog className="w-4 h-4" />
-                Users
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'settings'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Settings className="w-4 h-4" />
-                Settings
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('auditLog')}
-              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'auditLog'
-                  ? 'border-blue-500 text-blue-500'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                Audit Log
-              </div>
-            </button>
-          </div>
+          ))}
+        </nav>
+        <div className="p-4 border-t border-slate-700">
+          <div className="text-sm font-semibold">{user.name}</div>
+          <button onClick={onLogout} className="text-red-400 text-sm mt-2">Logout</button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <main className="p-6">
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-gray-400 text-sm">Total Clients</h3>
-                  <Users className="text-blue-400 w-5 h-5" />
-                </div>
-                <p className="text-3xl font-bold text-white">{stats.totalClients}</p>
-                <p className="text-gray-400 text-sm mt-2">{stats.activeClients} active</p>
-              </div>
+      <div className="flex-1 overflow-y-auto p-6">
+        <h1 className="text-3xl font-bold mb-2">Branch Administration</h1>
+        <p className="text-slate-400 mb-6">{user.branchName}</p>
 
-              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-gray-400 text-sm">Pending KYC</h3>
-                  <FileText className="text-yellow-400 w-5 h-5" />
-                </div>
-                <p className="text-3xl font-bold text-white">{stats.pendingKYC}</p>
-                <p className="text-yellow-400 text-sm mt-2">Requires review</p>
-              </div>
-
-              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-gray-400 text-sm">Total Volume</h3>
-                  <DollarSign className="text-green-400 w-5 h-5" />
-                </div>
-                <p className="text-3xl font-bold text-white">{stats.totalVolume}</p>
-                <p className="text-green-400 text-sm mt-2">This month</p>
-              </div>
-
-              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-gray-400 text-sm">Commission Earned</h3>
-                  <TrendingUp className="text-purple-400 w-5 h-5" />
-                </div>
-                <p className="text-3xl font-bold text-white">{stats.monthlyCommission}</p>
-                <p className="text-green-400 text-sm mt-2">+15% from last month</p>
-              </div>
-
-              <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-gray-400 text-sm">Risk Alerts</h3>
-                  <AlertTriangle className="text-red-400 w-5 h-5" />
-                </div>
-                <p className="text-3xl font-bold text-white">{stats.riskAlerts}</p>
-                <p className="text-red-400 text-sm mt-2">Requires attention</p>
-              </div>
+        <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-600/30 rounded-xl p-6 mb-6">
+          <h3 className="text-xl font-bold mb-2">Branch Referral Code</h3>
+          <p className="text-sm text-slate-300 mb-4">Share with new clients</p>
+          <div className="flex items-center space-x-3">
+            <div className="bg-slate-900/50 rounded-lg px-6 py-3 border border-slate-700">
+              <span className="text-2xl font-mono font-bold text-purple-400">{user.referralCode}</span>
             </div>
+            <button onClick={handleCopyReferral} className="bg-purple-600 hover:bg-purple-700 px-4 py-3 rounded-lg font-semibold flex items-center space-x-2">
+              {referralCopied ? <CheckCircle size={20} /> : <Copy size={20} />}
+              <span>{referralCopied ? 'Copied!' : 'Copy'}</span>
+            </button>
+          </div>
+        </div>
 
-            {/* Recent Trades */}
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h2 className="text-xl font-bold text-white mb-4">Recent Trades</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Client</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Pair</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Type</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Amount</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">P&L</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentTrades.map(trade => (
-                      <tr key={trade.id} className="border-b border-gray-700">
-                        <td className="py-3 text-white">{trade.client}</td>
-                        <td className="py-3 text-white">{trade.pair}</td>
-                        <td className="py-3">
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            trade.type === 'Buy' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                          }`}>
-                            {trade.type}
-                          </span>
-                        </td>
-                        <td className="py-3 text-white">{trade.amount}</td>
-                        <td className={`py-3 font-semibold ${
-                          trade.profit.startsWith('+') ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                          {trade.profit}
-                        </td>
-                        <td className="py-3 text-gray-400">{trade.time}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+              <div className="text-slate-400">Total Clients</div>
+              <div className="text-3xl font-bold">{clients.length}</div>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+              <div className="text-slate-400">Active</div>
+              <div className="text-3xl font-bold text-emerald-400">{clients.filter(c => c.status === 'active').length}</div>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+              <div className="text-slate-400">Total Balance</div>
+              <div className="text-3xl font-bold">${(clients.reduce((sum, c) => sum + c.balance, 0) / 1000).toFixed(0)}K</div>
             </div>
           </div>
         )}
@@ -1096,368 +313,485 @@ The client will be notified of the rejection.`);
         {activeTab === 'clients' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Client Management</h2>
-              <button
-                onClick={() => setShowAddClientModal(true)}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <UserPlus className="w-4 h-4" />
-                Add Client
+              <h2 className="text-2xl font-bold">Client Management</h2>
+              <button onClick={() => setShowAddClient(true)} className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold flex items-center space-x-2">
+                <Plus size={20} />
+                <span>Add Client</span>
               </button>
             </div>
-
-            <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-gray-700">
-                  <tr>
-                    <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Name</th>
-                    <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Account</th>
-                    <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Balance</th>
-                    <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Status</th>
-                    <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">KYC</th>
-                    <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Actions</th>
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1000px]">
+                  <thead>
+                    <tr className="border-b border-slate-700 bg-slate-900/50">
+                      <th className="text-left py-4 px-6 text-slate-400">Name</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Account</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Type</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Password</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Balance</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Status</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {clients.map(client => (
-                    <tr key={client.id} className="border-t border-gray-700">
-                      <td className="py-4 px-6 text-white">{client.name}</td>
-                      <td className="py-4 px-6 text-gray-400">{client.account}</td>
-                      <td className="py-4 px-6 text-white font-semibold">${client.balance.toLocaleString()}</td>
+                    <tr key={client.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                       <td className="py-4 px-6">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          client.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
+                        <div className="font-semibold">{client.name}</div>
+                        <div className="text-sm text-slate-400">{client.email}</div>
+                      </td>
+                      <td className="py-4 px-6 font-mono">{client.account}</td>
+                      <td className="py-4 px-6">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          client.accountType === 'business' 
+                            ? 'bg-purple-600/20 text-purple-400' 
+                            : 'bg-cyan-600/20 text-cyan-400'
                         }`}>
+                          {client.accountType === 'business' ? 'Business' : 'Standard'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm">
+                            {showClientPasswords[client.id] ? client.password : '•'.repeat(8)}
+                          </span>
+                          <button onClick={() => toggleShowPassword(client.id)} className="text-slate-400 hover:text-white">
+                            {showClientPasswords[client.id] ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 font-semibold">${client.balance.toLocaleString()}</td>
+                      <td className="py-4 px-6">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${client.status === 'active' ? 'bg-emerald-600/20 text-emerald-400' : 'bg-red-600/20 text-red-400'}`}>
                           {client.status}
                         </span>
                       </td>
                       <td className="py-4 px-6">
-                        <span className={`flex items-center gap-1 text-sm ${
-                          client.kyc === 'approved' ? 'text-green-400' : 'text-yellow-400'
-                        }`}>
-                          {client.kyc === 'approved' ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-                          {client.kyc}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <button
-                          onClick={() => handleOpenClientDetails(client)}
-                          className="text-blue-400 hover:text-blue-300 text-sm"
-                        >
-                          View Details
-                        </button>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleFreezeClient(client.id)} className={`px-3 py-2 rounded-lg text-xs font-semibold ${client.status === 'active' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                            {client.status === 'active' ? 'Freeze' : 'Activate'}
+                          </button>
+                          <button onClick={() => handleOpenChangePassword(client)} className="px-3 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700">
+                            <Key size={14} className="inline mr-1" />
+                            Change Pass
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'requests' && (
+        {activeTab === 'client-tracking' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Pending Transaction Requests</h2>
-              <div className="text-sm text-gray-400">
-                {stats.pendingRequests} pending request{stats.pendingRequests !== 1 ? 's' : ''}
+              <div>
+                <h2 className="text-2xl font-bold">Client Tracking</h2>
+                <p className="text-sm text-slate-400 mt-1">Real-time monitoring of client trading activity</p>
               </div>
             </div>
 
-            {pendingRequests.length > 0 ? (
-              <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-700">
-                    <tr>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Client</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Type</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Amount</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Method</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Comment</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Requested</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingRequests.map(request => (
-                      <tr key={request.id} className="border-t border-gray-700 hover:bg-gray-700/50">
-                        <td className="py-4 px-6">
-                          <div>
-                            <p className="text-white font-semibold">{request.clientName}</p>
-                            <p className="text-gray-400 text-sm">{request.account}</p>
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <span className={`px-3 py-1 rounded text-xs font-medium capitalize ${
-                            request.type === 'deposit'
-                              ? 'bg-green-500/20 text-green-400'
-                              : 'bg-orange-500/20 text-orange-400'
-                          }`}>
-                            {request.type}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-white font-bold text-lg">
-                          ${request.amount.toLocaleString()}
-                        </td>
-                        <td className="py-4 px-6 text-gray-400 capitalize">
-                          {request.method.replace('_', ' ')}
-                        </td>
-                        <td className="py-4 px-6 text-gray-400 text-sm max-w-xs truncate">
-                          {request.comment || '-'}
-                        </td>
-                        <td className="py-4 px-6 text-gray-400 text-sm">
-                          {request.requestDate}
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleApproveRequest(request)}
-                              className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm transition-colors"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRejectRequest(request)}
-                              className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
-                            >
-                              <XCircle className="w-4 h-4" />
-                              Reject
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="bg-gray-800 p-12 rounded-lg border border-gray-700 text-center">
-                <CheckCircle className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">No Pending Requests</h3>
-                <p className="text-gray-400">All transaction requests have been processed</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'kyc' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-white">KYC/AML Verification</h2>
-
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Pending Reviews</h3>
-              <div className="space-y-4">
-                {kycPending.map(item => (
-                  <div key={item.id} className="bg-gray-700 p-4 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-white font-semibold">{item.name}</h4>
-                        <p className="text-gray-400 text-sm">Account: {item.account}</p>
-                        <p className="text-gray-400 text-sm">Submitted {item.submitted} • {item.documents} documents</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors">
-                          <CheckCircle className="w-4 h-4" />
-                          Approve
-                        </button>
-                        <button className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors">
-                          <XCircle className="w-4 h-4" />
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'clientTracking' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Client Tracking & Management</h2>
-            </div>
-
-            {/* Search Bar */}
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search by account number or client name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-3 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+            {/* Summary Stats */}
+            <div className="grid grid-cols-4 gap-4">
+              <div className="bg-gradient-to-br from-blue-600/20 to-blue-600/5 rounded-xl p-6 border border-blue-600/30">
+                <div className="text-sm text-slate-400 mb-2">Total Equity</div>
+                <div className="text-3xl font-bold text-blue-400">
+                  ${clients.reduce((sum, c) => sum + c.equity, 0).toLocaleString()}
                 </div>
+                <div className="text-xs text-slate-500 mt-2">Across all clients</div>
+              </div>
+              <div className="bg-gradient-to-br from-emerald-600/20 to-emerald-600/5 rounded-xl p-6 border border-emerald-600/30">
+                <div className="text-sm text-slate-400 mb-2">Open Positions</div>
+                <div className="text-3xl font-bold text-emerald-400">
+                  {clients.reduce((sum, c) => sum + c.openPositions, 0)}
+                </div>
+                <div className="text-xs text-slate-500 mt-2">Active trades</div>
+              </div>
+              <div className="bg-gradient-to-br from-purple-600/20 to-purple-600/5 rounded-xl p-6 border border-purple-600/30">
+                <div className="text-sm text-slate-400 mb-2">Total Profit/Loss</div>
+                <div className="text-3xl font-bold text-purple-400">
+                  ${clients.reduce((sum, c) => sum + c.totalProfit, 0).toLocaleString()}
+                </div>
+                <div className="text-xs text-slate-500 mt-2">Unrealized P&L</div>
+              </div>
+              <div className="bg-gradient-to-br from-amber-600/20 to-amber-600/5 rounded-xl p-6 border border-amber-600/30">
+                <div className="text-sm text-slate-400 mb-2">Trades Today</div>
+                <div className="text-3xl font-bold text-amber-400">
+                  {clients.reduce((sum, c) => sum + c.todayTrades, 0)}
+                </div>
+                <div className="text-xs text-slate-500 mt-2">Total volume</div>
               </div>
             </div>
 
-            {/* Client Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {clients.filter(client => {
-                const searchLower = searchTerm.toLowerCase();
-                return client.name.toLowerCase().includes(searchLower) ||
-                       client.account.toLowerCase().includes(searchLower);
-              }).map(client => {
-                const clientPositions = openPositions.filter(pos => pos.clientId === client.id);
-                const totalProfit = clientPositions.reduce((sum, pos) => sum + pos.profit, 0);
-                const marginLevelColor = getMarginLevelTextColor(client.marginLevel);
-
+            {/* Client Activity Cards */}
+            <div className="space-y-4">
+              {clients.map(client => {
+                const marginHealthColor = 
+                  client.marginLevel >= 500 ? 'emerald' : 
+                  client.marginLevel >= 200 ? 'amber' : 'red';
+                const marginHealthText = 
+                  client.marginLevel >= 500 ? 'Healthy' : 
+                  client.marginLevel >= 200 ? 'Warning' : 'Critical';
+                
                 return (
-                  <div key={client.id} className="bg-gray-800 rounded-lg border border-gray-700 p-6 hover:border-blue-500 transition-colors">
+                  <div key={client.id} className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
                     {/* Client Header */}
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-white font-bold text-lg">{client.name}</h3>
-                        <p className="text-gray-400 text-sm">{client.account}</p>
-                        <span className={`inline-block px-2 py-1 rounded text-xs mt-2 ${
-                          client.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
-                        }`}>
-                          {client.status}
-                        </span>
+                    <div className="bg-slate-900/50 p-6 border-b border-slate-700">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 bg-blue-600/20 rounded-full flex items-center justify-center text-blue-400 font-bold text-xl">
+                            {client.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-3">
+                              <div className="text-xl font-bold">{client.name}</div>
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                client.accountType === 'business' 
+                                  ? 'bg-purple-600/20 text-purple-400' 
+                                  : 'bg-cyan-600/20 text-cyan-400'
+                              }`}>
+                                {client.accountType === 'business' ? 'Business' : 'Standard'}
+                              </span>
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                client.status === 'active' 
+                                  ? 'bg-emerald-600/20 text-emerald-400' 
+                                  : 'bg-red-600/20 text-red-400'
+                              }`}>
+                                {client.status === 'active' ? 'Active' : 'Frozen'}
+                              </span>
+                            </div>
+                            <div className="text-sm text-slate-400 mt-1">
+                              {client.account} • {client.email}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs text-slate-400">Last Active</div>
+                          <div className="text-sm font-semibold">{client.lastActive}</div>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => handleOpenClientDetails(client)}
-                        className="text-blue-400 hover:text-blue-300 text-sm"
-                      >
-                        View Details
-                      </button>
                     </div>
 
                     {/* Account Metrics */}
-                    <div className="space-y-3 mb-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-400 text-sm">Balance</span>
-                        <span className="text-white font-bold">${client.balance.toLocaleString()}</span>
+                    <div className="p-6">
+                      <div className="grid grid-cols-5 gap-4">
+                        {/* Balance */}
+                        <div className="bg-slate-900/50 rounded-lg p-4">
+                          <div className="text-xs text-slate-400 mb-1">Balance</div>
+                          <div className="text-xl font-bold text-white">
+                            ${client.balance.toLocaleString()}
+                          </div>
+                        </div>
+
+                        {/* Equity */}
+                        <div className="bg-slate-900/50 rounded-lg p-4">
+                          <div className="text-xs text-slate-400 mb-1">Equity</div>
+                          <div className="text-xl font-bold text-blue-400">
+                            ${client.equity.toLocaleString()}
+                          </div>
+                          <div className={`text-xs mt-1 ${
+                            client.equity > client.balance ? 'text-emerald-400' : 'text-red-400'
+                          }`}>
+                            {client.equity > client.balance ? '+' : ''}
+                            ${(client.equity - client.balance).toLocaleString()}
+                          </div>
+                        </div>
+
+                        {/* Free Margin */}
+                        <div className="bg-slate-900/50 rounded-lg p-4">
+                          <div className="text-xs text-slate-400 mb-1">Free Margin</div>
+                          <div className="text-xl font-bold text-emerald-400">
+                            ${client.freeMargin.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            Used: ${client.usedMargin.toLocaleString()}
+                          </div>
+                        </div>
+
+                        {/* Margin Level */}
+                        <div className={`bg-${marginHealthColor}-600/10 border border-${marginHealthColor}-600/30 rounded-lg p-4`}>
+                          <div className="text-xs text-slate-400 mb-1">Margin Level</div>
+                          <div className={`text-xl font-bold text-${marginHealthColor}-400`}>
+                            {client.marginLevel}%
+                          </div>
+                          <div className={`text-xs mt-1 text-${marginHealthColor}-400`}>
+                            {marginHealthText}
+                          </div>
+                        </div>
+
+                        {/* Profit/Loss */}
+                        <div className="bg-slate-900/50 rounded-lg p-4">
+                          <div className="text-xs text-slate-400 mb-1">Unrealized P&L</div>
+                          <div className={`text-xl font-bold ${
+                            client.totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'
+                          }`}>
+                            {client.totalProfit >= 0 ? '+' : ''}${client.totalProfit.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            {((client.totalProfit / client.balance) * 100).toFixed(2)}%
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-400 text-sm">Equity</span>
-                        <span className={`font-bold ${client.equity >= client.balance ? 'text-green-400' : 'text-red-400'}`}>
-                          ${client.equity.toLocaleString()}
-                        </span>
+
+                      {/* Trading Activity */}
+                      <div className="mt-4 grid grid-cols-3 gap-4">
+                        <button 
+                          onClick={() => handleViewClientPositions(client)}
+                          className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 hover:bg-blue-600/20 transition-all cursor-pointer text-left"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-xs text-slate-400">Open Positions</div>
+                              <div className="text-2xl font-bold text-blue-400">{client.openPositions}</div>
+                              <div className="text-xs text-blue-400 mt-1">Click to view →</div>
+                            </div>
+                            <Activity size={32} className="text-blue-400 opacity-50" />
+                          </div>
+                        </button>
+
+                        <div className="bg-purple-600/10 border border-purple-600/30 rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-xs text-slate-400">Trades Today</div>
+                              <div className="text-2xl font-bold text-purple-400">{client.todayTrades}</div>
+                            </div>
+                            <TrendingUp size={32} className="text-purple-400 opacity-50" />
+                          </div>
+                        </div>
+
+                        <div className="bg-amber-600/10 border border-amber-600/30 rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-xs text-slate-400">Account Health</div>
+                              <div className={`text-2xl font-bold text-${marginHealthColor}-400`}>
+                                {marginHealthText}
+                              </div>
+                            </div>
+                            <BarChart3 size={32} className={`text-${marginHealthColor}-400 opacity-50`} />
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-400 text-sm">Free Margin</span>
-                        <span className="text-white font-semibold">${client.freeMargin.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-400 text-sm">Margin Level</span>
-                        <span className={`font-bold ${marginLevelColor}`}>
-                          {client.marginLevel.toFixed(2)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-400 text-sm">Open Positions</span>
-                        <span className="text-blue-400 font-semibold">{clientPositions.length}</span>
-                      </div>
-                      {clientPositions.length > 0 && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-400 text-sm">Floating P/L</span>
-                          <span className={`font-bold ${totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {totalProfit >= 0 ? '+' : ''}${totalProfit.toFixed(2)}
-                          </span>
+
+                      {/* Risk Warnings & Liquidation Calculator */}
+                      {client.equity <= 1000 && (
+                        <div className={`mt-4 ${client.equity <= 5 ? 'bg-red-600/20' : client.equity <= 100 ? 'bg-red-600/10' : 'bg-amber-600/10'} border ${client.equity <= 5 ? 'border-red-600' : client.equity <= 100 ? 'border-red-600/30' : 'border-amber-600/30'} rounded-lg p-4 flex items-start space-x-3`}>
+                          <AlertTriangle size={24} className={`${client.equity <= 100 ? 'text-red-400' : 'text-amber-400'} flex-shrink-0 mt-0.5 ${client.equity <= 5 ? 'animate-pulse' : ''}`} />
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold ${client.equity <= 100 ? 'text-red-400' : 'text-amber-400'}`}>
+                              {client.equity <= 5 ? '💀 LIQUIDATION IN PROGRESS' : client.equity <= 100 ? '🚨 CRITICAL - Near Liquidation' : '⚠️ Low Balance Warning'}
+                            </div>
+                            <div className="text-xs text-slate-300 mt-1">
+                              {client.equity <= 5 
+                                ? `Account has reached minimum threshold of $5. All positions are being automatically closed to prevent negative balance.`
+                                : client.equity <= 100 
+                                ? `Only $${client.equity.toFixed(2)} remaining! Account will be liquidated at $5. Client MUST add funds immediately.`
+                                : `Balance at $${client.equity.toFixed(2)}. Approaching liquidation threshold of $5. Recommend adding funds or closing positions.`}
+                            </div>
+                          </div>
                         </div>
                       )}
-                    </div>
 
-                    {/* Action Buttons */}
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <button
-                        onClick={() => handleOpenDepositModal(client)}
-                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs transition-colors"
-                      >
-                        Deposit
-                      </button>
-                      <button
-                        onClick={() => handleOpenWithdrawalModal(client)}
-                        className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-xs transition-colors"
-                      >
-                        Withdraw
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {client.status === 'active' && (
-                        <button
-                          onClick={() => handleOpenTradeModal(client)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-xs transition-colors"
-                        >
-                          Trade
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleOpenExportModal(client)}
-                        className={`flex items-center justify-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-xs transition-colors ${client.status !== 'active' ? 'col-span-2' : ''}`}
-                      >
-                        <FileDown className="w-3 h-3" />
-                        Export
-                      </button>
-                    </div>
+                      {/* Liquidation Risk Calculator */}
+                      <div className="mt-4 bg-slate-900/50 border border-slate-700 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="text-sm font-semibold text-slate-300">💀 Liquidation Risk Analysis</div>
+                          <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            client.equity <= 5 ? 'bg-red-600 text-white animate-pulse' :
+                            client.equity <= 100 ? 'bg-red-600/30 text-red-400' :
+                            client.equity <= 1000 ? 'bg-amber-600/30 text-amber-400' :
+                            'bg-emerald-600/30 text-emerald-400'
+                          }`}>
+                            {client.equity <= 5 ? 'LIQUIDATING' :
+                             client.equity <= 100 ? 'CRITICAL' :
+                             client.equity <= 1000 ? 'AT RISK' :
+                             'SAFE'}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-3 text-xs">
+                          {/* Warning Level */}
+                          <div className="bg-amber-600/10 border border-amber-600/30 rounded p-3">
+                            <div className="text-slate-400 mb-1">Warning Level</div>
+                            <div className="text-lg font-bold text-amber-400">$100.00</div>
+                            <div className="text-slate-500 mt-1">
+                              Critical low balance alert
+                            </div>
+                            <div className="mt-2 text-amber-400">
+                              {client.equity > 100 
+                                ? `✓ Above warning ($${(client.equity - 100).toLocaleString()} buffer)`
+                                : `⚠ $${(100 - client.equity).toFixed(2)} below warning level`}
+                            </div>
+                          </div>
 
-                    {/* Health Indicator */}
-                    <div className="mt-4 pt-4 border-t border-gray-700">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${getMarginLevelBgColor(client.marginLevel)}`}></div>
-                        <span className="text-gray-400 text-xs">
-                          {getMarginLevelStatus(client.marginLevel)}
-                        </span>
+                          {/* Stop Out Level */}
+                          <div className="bg-red-600/10 border border-red-600/30 rounded p-3">
+                            <div className="text-slate-400 mb-1">Stop Out (Liquidation)</div>
+                            <div className="text-lg font-bold text-red-400">$5.00</div>
+                            <div className="text-slate-500 mt-1">
+                              Minimum balance threshold
+                            </div>
+                            <div className="mt-2 text-red-400">
+                              {client.equity > 5 
+                                ? `$${(client.equity - 5).toLocaleString()} to liquidation`
+                                : `🚨 LIQUIDATING NOW`}
+                            </div>
+                          </div>
+
+                          {/* Max Loss Before Liquidation */}
+                          <div className="bg-blue-600/10 border border-blue-600/30 rounded p-3">
+                            <div className="text-slate-400 mb-1">Max Loss Allowable</div>
+                            <div className="text-lg font-bold text-blue-400">
+                              ${(client.equity - 5).toLocaleString()}
+                            </div>
+                            <div className="text-slate-500 mt-1">
+                              Before automatic liquidation
+                            </div>
+                            <div className="mt-2 text-blue-400">
+                              {((client.equity - 5) / client.balance * 100).toFixed(1)}% of balance
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Timeline */}
+                        <div className="mt-3 pt-3 border-t border-slate-700">
+                          <div className="text-xs text-slate-400 mb-2">📊 What happens next:</div>
+                          <div className="space-y-1 text-xs">
+                            {client.equity > 1000 && (
+                              <div className="flex items-center text-emerald-400">
+                                <div className="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>
+                                <span>✓ Account healthy - No action required</span>
+                              </div>
+                            )}
+                            {client.equity <= 1000 && client.equity > 100 && (
+                              <div className="flex items-center text-amber-400">
+                                <div className="w-2 h-2 bg-amber-400 rounded-full mr-2"></div>
+                                <span>⚠️ Low balance warning - Add funds or reduce exposure</span>
+                              </div>
+                            )}
+                            {client.equity <= 100 && client.equity > 5 && (
+                              <div className="flex items-center text-red-400">
+                                <div className="w-2 h-2 bg-red-400 rounded-full mr-2 animate-pulse"></div>
+                                <span>🚨 CRITICAL - Only ${client.equity.toFixed(2)} remaining before liquidation</span>
+                              </div>
+                            )}
+                            {client.equity <= 5 && (
+                              <div className="flex items-center text-red-400 font-bold">
+                                <div className="w-2 h-2 bg-red-400 rounded-full mr-2 animate-pulse"></div>
+                                <span>💀 STOP OUT - Account at $5 minimum, positions liquidated automatically</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 );
               })}
             </div>
+          </div>
+        )}
 
-            {/* Open Positions Table */}
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-              <h3 className="text-xl font-bold text-white mb-4">All Open Positions</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="border-b border-gray-700">
-                    <tr>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Client</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Product</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Type</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Volume</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Open Price</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Current Price</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Profit/Loss</th>
-                      <th className="text-left text-gray-400 text-sm font-medium py-3">Open Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {openPositions.map(position => {
-                      const client = clients.find(c => c.id === position.clientId);
-                      return (
-                        <tr key={position.id} className="border-b border-gray-700">
-                          <td className="py-3 text-white">{client?.name}</td>
-                          <td className="py-3 text-white font-semibold">{position.product}</td>
-                          <td className="py-3">
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              position.type === 'buy' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                            }`}>
-                              {position.type.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="py-3 text-white">{position.volume} lots</td>
-                          <td className="py-3 text-gray-400">{position.openPrice}</td>
-                          <td className="py-3 text-white">{position.currentPrice}</td>
-                          <td className={`py-3 font-bold ${
-                            position.profit >= 0 ? 'text-green-400' : 'text-red-400'
-                          }`}>
-                            {position.profit >= 0 ? '+' : ''}${position.profit.toFixed(2)}
-                          </td>
-                          <td className="py-3 text-gray-400">{position.openTime}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+        {activeTab === 'wallet' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Wallet</h2>
+              <div className="flex space-x-3">
+                <button onClick={() => setShowDepositModal(true)} className="bg-emerald-600 hover:bg-emerald-700 px-6 py-3 rounded-lg font-semibold flex items-center space-x-2">
+                  <Plus size={20} />
+                  <span>Deposit</span>
+                </button>
+                <button onClick={() => setShowWithdrawModal(true)} className="bg-amber-600 hover:bg-amber-700 px-6 py-3 rounded-lg font-semibold flex items-center space-x-2">
+                  <Download size={20} />
+                  <span>Withdraw</span>
+                </button>
+                <button onClick={() => setShowTransferModal(true)} className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold flex items-center space-x-2">
+                  <TrendingUp size={20} />
+                  <span>Transfer to Client</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Wallet Balance Card */}
+            <div className="bg-gradient-to-r from-emerald-600/20 to-blue-600/20 border border-emerald-600/30 rounded-xl p-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-slate-400 mb-2">Available Wallet Balance</div>
+                  <div className="text-5xl font-bold text-white mb-2">${walletBalance.toLocaleString()}</div>
+                  <div className="text-sm text-slate-300">
+                    💳 Use wallet to fund client accounts instantly
+                  </div>
+                </div>
+                <div className="text-8xl opacity-10">
+                  <DollarSign size={120} />
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+                <div className="text-slate-400 text-sm mb-2">Total Deposits</div>
+                <div className="text-3xl font-bold text-emerald-400">
+                  ${walletTransactions.filter(t => t.type === 'deposit').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+                <div className="text-slate-400 text-sm mb-2">Total Withdrawals</div>
+                <div className="text-3xl font-bold text-red-400">
+                  ${walletTransactions.filter(t => t.type === 'withdrawal').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+                <div className="text-slate-400 text-sm mb-2">Transfers to Clients</div>
+                <div className="text-3xl font-bold text-blue-400">
+                  ${walletTransactions.filter(t => t.type === 'transfer').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            {/* Wallet Transactions */}
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700">
+              <div className="p-6 border-b border-slate-700">
+                <h3 className="text-xl font-bold">Recent Wallet Activity</h3>
+              </div>
+              <div className="divide-y divide-slate-700">
+                {walletTransactions.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400">No wallet transactions yet</div>
+                ) : (
+                  walletTransactions.slice(0, 10).map(transaction => (
+                    <div key={transaction.id} className="p-6 flex items-center justify-between hover:bg-slate-700/30">
+                      <div className="flex items-center space-x-4">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                          transaction.type === 'deposit' ? 'bg-emerald-600/20 text-emerald-400' :
+                          transaction.type === 'withdrawal' ? 'bg-red-600/20 text-red-400' :
+                          'bg-blue-600/20 text-blue-400'
+                        }`}>
+                          {transaction.type === 'deposit' ? <Plus size={24} /> :
+                           transaction.type === 'withdrawal' ? <Download size={24} /> :
+                           <TrendingUp size={24} />}
+                        </div>
+                        <div>
+                          <div className="font-semibold">{transaction.description}</div>
+                          <div className="text-sm text-slate-400">{transaction.date}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-xl font-bold ${
+                          transaction.type === 'deposit' ? 'text-emerald-400' :
+                          transaction.type === 'withdrawal' ? 'text-red-400' :
+                          'text-blue-400'
+                        }`}>
+                          {transaction.type === 'withdrawal' || transaction.type === 'transfer' ? '-' : '+'}${transaction.amount.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-slate-500">{transaction.status}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -1466,559 +800,502 @@ The client will be notified of the rejection.`);
         {activeTab === 'transactions' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Transaction Management</h2>
-              <div className="text-sm text-gray-400">
-                {transactions.length} total transaction{transactions.length !== 1 ? 's' : ''}
+              <h2 className="text-2xl font-bold">Transaction History</h2>
+              <button 
+                onClick={exportTransactionsToPDF}
+                disabled={getFilteredTransactions().length === 0}
+                className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold flex items-center space-x-2"
+              >
+                <Download size={20} />
+                <span>Export Report</span>
+              </button>
+            </div>
+
+            {/* Date Range Filter */}
+            <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <label className="text-sm text-slate-400 mb-2 block">From Date</label>
+                  <input 
+                    type="date" 
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    value={dateFilterFrom}
+                    onChange={(e) => setDateFilterFrom(e.target.value)}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm text-slate-400 mb-2 block">To Date</label>
+                  <input 
+                    type="date" 
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white"
+                    value={dateFilterTo}
+                    onChange={(e) => setDateFilterTo(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button 
+                    onClick={() => { setDateFilterFrom(''); setDateFilterTo(''); }}
+                    className="bg-slate-700 hover:bg-slate-600 px-6 py-3 rounded-lg font-semibold"
+                  >
+                    Clear Filter
+                  </button>
+                </div>
+              </div>
+              
+              {/* Summary Stats */}
+              <div className="grid grid-cols-4 gap-4 mt-6">
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="text-xs text-slate-400">Total Deposits</div>
+                  <div className="text-xl font-bold text-emerald-400">
+                    ${getFilteredTransactions().filter(t => t.type === 'deposit').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
+                  </div>
+                </div>
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="text-xs text-slate-400">Total Withdrawals</div>
+                  <div className="text-xl font-bold text-red-400">
+                    ${getFilteredTransactions().filter(t => t.type === 'withdrawal').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
+                  </div>
+                </div>
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="text-xs text-slate-400">Commissions</div>
+                  <div className="text-xl font-bold text-amber-400">
+                    ${getFilteredTransactions().filter(t => t.type === 'commission').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
+                  </div>
+                </div>
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="text-xs text-slate-400">Net Flow</div>
+                  <div className="text-xl font-bold text-blue-400">
+                    ${(getFilteredTransactions().filter(t => t.type === 'deposit').reduce((sum, t) => sum + t.amount, 0) - 
+                       getFilteredTransactions().filter(t => t.type === 'withdrawal').reduce((sum, t) => sum + t.amount, 0)).toLocaleString()}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Transaction Statistics */}
-            {transactionStats && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                  <div className="text-gray-400 text-sm mb-1">Pending Approval</div>
-                  <div className="text-2xl font-bold text-yellow-400">{transactionStats.pending}</div>
-                  <div className="text-sm text-gray-500 mt-1">${transactionStats.pendingAmount.toLocaleString()}</div>
-                </div>
-                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                  <div className="text-gray-400 text-sm mb-1">Completed</div>
-                  <div className="text-2xl font-bold text-green-400">{transactionStats.completed}</div>
-                  <div className="text-sm text-gray-500 mt-1">Total Deposits: ${transactionStats.totalDeposits.toLocaleString()}</div>
-                </div>
-                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                  <div className="text-gray-400 text-sm mb-1">Processing</div>
-                  <div className="text-2xl font-bold text-blue-400">{transactionStats.processing + transactionStats.adminApproved + transactionStats.managerApproved}</div>
-                  <div className="text-sm text-gray-500 mt-1">In workflow</div>
-                </div>
-                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                  <div className="text-gray-400 text-sm mb-1">Rejected/Failed</div>
-                  <div className="text-2xl font-bold text-red-400">{transactionStats.rejected + transactionStats.failed}</div>
-                  <div className="text-sm text-gray-500 mt-1">Needs review</div>
-                </div>
-              </div>
-            )}
-
-            {/* Transactions Table */}
-            {transactions.length > 0 ? (
-              <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-700">
+            {/* Transaction Table */}
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-700 bg-slate-900/50">
+                    <th className="text-left py-4 px-6 text-slate-400">Date & Time</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Type</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Client</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Account</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Amount</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Description</th>
+                    <th className="text-left py-4 px-6 text-slate-400">Performed By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getFilteredTransactions().length === 0 ? (
                     <tr>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Transaction ID</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Client</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Type</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Amount</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Status</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Created</th>
-                      <th className="text-left text-gray-300 text-sm font-medium py-3 px-6">Actions</th>
+                      <td colSpan="7" className="py-8 px-6 text-center text-slate-400">
+                        No transactions found for the selected date range
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.map(transaction => {
-                      const getStatusBadgeClass = (status) => {
-                        const statusClasses = {
-                          'pending': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-                          'admin_approved': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-                          'manager_approved': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-                          'processing': 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-                          'completed': 'bg-green-500/20 text-green-400 border-green-500/30',
-                          'admin_rejected': 'bg-red-500/20 text-red-400 border-red-500/30',
-                          'manager_rejected': 'bg-red-500/20 text-red-400 border-red-500/30',
-                          'failed': 'bg-red-500/20 text-red-400 border-red-500/30'
-                        };
-                        return statusClasses[status] || 'bg-gray-500/20 text-gray-400';
-                      };
-
-                      const getStatusLabel = (status) => {
-                        const labels = {
-                          'pending': 'Pending',
-                          'admin_approved': 'Admin Approved',
-                          'manager_approved': 'Manager Approved',
-                          'processing': 'Processing',
-                          'completed': 'Completed',
-                          'admin_rejected': 'Admin Rejected',
-                          'manager_rejected': 'Manager Rejected',
-                          'failed': 'Failed'
-                        };
-                        return labels[status] || status;
-                      };
-
-                      return (
-                        <tr key={transaction.id} className="border-t border-gray-700 hover:bg-gray-700/50 transition-colors">
-                          <td className="py-4 px-6">
-                            <div className="text-blue-400 font-mono text-sm">{transaction.id}</div>
-                            {transaction.receiptNumber && (
-                              <div className="text-gray-500 text-xs mt-1">Receipt: {transaction.receiptNumber}</div>
-                            )}
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="text-white font-semibold">{transaction.clientName}</div>
-                            <div className="text-gray-400 text-sm">{transaction.clientAccount}</div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`px-3 py-1 rounded text-xs font-medium uppercase ${
-                              transaction.type === 'deposit'
-                                ? 'bg-green-500/20 text-green-400'
-                                : 'bg-orange-500/20 text-orange-400'
-                            }`}>
-                              {transaction.type}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className={`font-bold text-lg ${
-                              transaction.type === 'deposit' ? 'text-green-400' : 'text-orange-400'
-                            }`}>
-                              ${transaction.amount.toLocaleString()}
-                            </div>
-                            <div className="text-gray-500 text-xs capitalize">
-                              {transaction.paymentMethod.replace(/_/g, ' ')}
-                            </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`px-3 py-1 rounded border text-xs font-medium ${getStatusBadgeClass(transaction.status)}`}>
-                              {getStatusLabel(transaction.status)}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="text-white text-sm">
-                              {new Date(transaction.createdAt).toLocaleDateString()}
-                            </div>
-                            <div className="text-gray-400 text-xs">
-                              {new Date(transaction.createdAt).toLocaleTimeString()}
-                            </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleViewTransactionDetails(transaction)}
-                                className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs transition-colors"
-                                title="View Details"
-                              >
-                                <Eye className="w-3 h-3" />
-                                View
-                              </button>
-                              {transaction.status === TRANSACTION_STATUS.COMPLETED && (
-                                <button
-                                  onClick={() => handlePrintReceipt(transaction)}
-                                  className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs transition-colors"
-                                  title="Print Receipt"
-                                >
-                                  <Printer className="w-3 h-3" />
-                                  Receipt
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="bg-gray-800 p-12 rounded-lg border border-gray-700 text-center">
-                <History className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">No Transactions Yet</h3>
-                <p className="text-gray-400">Transactions will appear here once you create deposits or withdrawals</p>
-              </div>
-            )}
+                  ) : (
+                    getFilteredTransactions().map(transaction => (
+                      <tr key={transaction.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                        <td className="py-4 px-6 text-sm">{transaction.date}</td>
+                        <td className="py-4 px-6">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            transaction.type === 'deposit' ? 'bg-emerald-600/20 text-emerald-400' :
+                            transaction.type === 'withdrawal' ? 'bg-red-600/20 text-red-400' :
+                            'bg-amber-600/20 text-amber-400'
+                          }`}>
+                            {transaction.type.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">{transaction.clientName}</td>
+                        <td className="py-4 px-6 font-mono text-sm">{transaction.clientAccount}</td>
+                        <td className="py-4 px-6">
+                          <span className={`font-semibold ${
+                            transaction.type === 'deposit' ? 'text-emerald-400' : 
+                            transaction.type === 'withdrawal' ? 'text-red-400' : 
+                            'text-amber-400'
+                          }`}>
+                            {transaction.type === 'withdrawal' ? '-' : '+'}${transaction.amount.toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-sm text-slate-300">{transaction.description}</td>
+                        <td className="py-4 px-6 text-sm text-slate-400">{transaction.performedBy}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
-        {activeTab === 'reports' && <AdminReports branchName={user?.branchName || user?.branch} />}
-
-        {activeTab === 'adminUsers' && <AdminUserManagement branchName={user?.branchName || user?.branch} />}
-
-        {activeTab === 'settings' && <AdminSettings user={user} branchName={user?.branchName || user?.branch} />}
-
-        {activeTab === 'auditLog' && <AdminAuditLog user={user} branchName={user?.branchName || user?.branch} />}
-
-      </main>
-
-      {/* Deposit Modal */}
-      {showDepositModal && selectedClient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <ArrowDownCircle className="w-6 h-6 text-green-400" />
-                Deposit Funds
-              </h3>
-              <button
-                onClick={() => {
-                  setShowDepositModal(false);
-                  setSelectedClient(null);
-                  setDepositData({ amount: '', method: 'cash', comment: '' });
-                }}
-                className="text-gray-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="mb-4 p-4 bg-gray-700 rounded-lg">
-              <div className="text-sm text-gray-400">Client</div>
-              <div className="text-white font-bold">{selectedClient.name}</div>
-              <div className="text-sm text-gray-400">{selectedClient.account}</div>
-              <div className="mt-2 text-sm text-gray-400">Current Balance</div>
-              <div className="text-2xl font-bold text-white">${selectedClient.balance.toLocaleString()}</div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Amount ($)</label>
-                <input
-                  type="number"
-                  value={depositData.amount}
-                  onChange={(e) => setDepositData(prev => ({ ...prev, amount: e.target.value }))}
-                  placeholder="Enter amount"
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
+        {/* Change Client Password Modal */}
+        {showChangePasswordModal && selectedClient && (
+          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-slate-700 my-8">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">Change Client Password</h3>
+                <button onClick={() => setShowChangePasswordModal(false)}><X size={24} /></button>
               </div>
-
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Payment Method</label>
-                <select
-                  value={depositData.method}
-                  onChange={(e) => setDepositData(prev => ({ ...prev, method: e.target.value }))}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="credit_card">Credit Card</option>
-                  <option value="e_wallet">E-Wallet</option>
-                  <option value="check">Check</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Comment (Optional)</label>
-                <textarea
-                  value={depositData.comment}
-                  onChange={(e) => setDepositData(prev => ({ ...prev, comment: e.target.value }))}
-                  placeholder="Add a note..."
-                  rows={3}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-
-              {depositData.amount && (
-                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                  <div className="text-sm text-gray-400">New Balance</div>
-                  <div className="text-2xl font-bold text-green-400">
-                    ${(selectedClient.balance + Number.parseFloat(depositData.amount || 0)).toLocaleString()}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowDepositModal(false);
-                  setSelectedClient(null);
-                  setDepositData({ amount: '', method: 'cash', comment: '' });
-                }}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleExecuteDeposit}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors font-semibold"
-              >
-                Confirm Deposit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Withdrawal Modal */}
-      {showWithdrawalModal && selectedClient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <ArrowUpCircle className="w-6 h-6 text-orange-400" />
-                Withdraw Funds
-              </h3>
-              <button
-                onClick={() => {
-                  setShowWithdrawalModal(false);
-                  setSelectedClient(null);
-                  setWithdrawalData({ amount: '', method: 'cash', comment: '' });
-                }}
-                className="text-gray-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="mb-4 p-4 bg-gray-700 rounded-lg">
-              <div className="text-sm text-gray-400">Client</div>
-              <div className="text-white font-bold">{selectedClient.name}</div>
-              <div className="text-sm text-gray-400">{selectedClient.account}</div>
-              <div className="mt-2 text-sm text-gray-400">Current Balance</div>
-              <div className="text-2xl font-bold text-white">${selectedClient.balance.toLocaleString()}</div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Amount ($)</label>
-                <input
-                  type="number"
-                  value={withdrawalData.amount}
-                  onChange={(e) => setWithdrawalData(prev => ({ ...prev, amount: e.target.value }))}
-                  placeholder="Enter amount"
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Payment Method</label>
-                <select
-                  value={withdrawalData.method}
-                  onChange={(e) => setWithdrawalData(prev => ({ ...prev, method: e.target.value }))}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="credit_card">Credit Card</option>
-                  <option value="e_wallet">E-Wallet</option>
-                  <option value="check">Check</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Comment (Optional)</label>
-                <textarea
-                  value={withdrawalData.comment}
-                  onChange={(e) => setWithdrawalData(prev => ({ ...prev, comment: e.target.value }))}
-                  placeholder="Add a note..."
-                  rows={3}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
-
-              {withdrawalData.amount && (
-                <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
-                  <div className="text-sm text-gray-400">New Balance</div>
-                  <div className="text-2xl font-bold text-orange-400">
-                    ${(selectedClient.balance - Number.parseFloat(withdrawalData.amount || 0)).toLocaleString()}
-                  </div>
-                  {(selectedClient.balance - Number.parseFloat(withdrawalData.amount || 0)) < 0 && (
-                    <div className="text-red-400 text-sm mt-2">⚠️ Warning: Insufficient balance</div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowWithdrawalModal(false);
-                  setSelectedClient(null);
-                  setWithdrawalData({ amount: '', method: 'cash', comment: '' });
-                }}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleExecuteWithdrawal}
-                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors font-semibold"
-              >
-                Confirm Withdrawal
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Transaction Details Modal */}
-      {selectedTransaction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg w-full max-w-3xl border border-gray-700 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b border-gray-700 sticky top-0 bg-gray-800 z-10">
-              <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-                <FileText className="w-6 h-6 text-blue-400" />
-                Transaction Details
-              </h3>
-              <button
-                onClick={() => setSelectedTransaction(null)}
-                className="text-gray-400 hover:text-white text-2xl leading-none"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Transaction Header */}
-              <div className="bg-gray-700 rounded-lg p-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-sm text-gray-400 mb-1">Transaction ID</div>
-                    <div className="text-white font-mono font-bold text-lg">{selectedTransaction.id}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-400 mb-1">Status</div>
-                    <div>
-                      <span className={`px-4 py-2 rounded-lg inline-block font-semibold ${
-                        selectedTransaction.status === 'completed' ? 'bg-green-500/20 text-green-400 border-2 border-green-500/30' :
-                        selectedTransaction.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/30' :
-                        selectedTransaction.status.includes('rejected') || selectedTransaction.status === 'failed' ? 'bg-red-500/20 text-red-400 border-2 border-red-500/30' :
-                        'bg-blue-500/20 text-blue-400 border-2 border-blue-500/30'
-                      }`}>
-                        {selectedTransaction.status.replace(/_/g, ' ').toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                  {selectedTransaction.receiptNumber && (
-                    <div className="col-span-2">
-                      <div className="text-sm text-gray-400 mb-1">Receipt Number</div>
-                      <div className="text-white font-mono">{selectedTransaction.receiptNumber}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Transaction Amount */}
-              <div className={`rounded-lg p-6 text-center ${
-                selectedTransaction.type === 'deposit' ? 'bg-green-500/10 border-2 border-green-500/30' : 'bg-orange-500/10 border-2 border-orange-500/30'
-              }`}>
-                <div className="text-sm text-gray-400 mb-2 uppercase tracking-wide">
-                  {selectedTransaction.type}
-                </div>
-                <div className={`text-5xl font-bold ${
-                  selectedTransaction.type === 'deposit' ? 'text-green-400' : 'text-orange-400'
-                }`}>
-                  ${selectedTransaction.amount.toLocaleString()}
-                </div>
-              </div>
-
-              {/* Client Information */}
-              <div>
-                <h4 className="text-lg font-semibold text-white mb-3">Client Information</h4>
-                <div className="bg-gray-700 rounded-lg p-4 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Name:</span>
-                    <span className="text-white font-semibold">{selectedTransaction.clientName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Account:</span>
-                    <span className="text-white font-mono">{selectedTransaction.clientAccount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Branch:</span>
-                    <span className="text-white">{selectedTransaction.branch}</span>
+              
+              <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 mb-4">
+                <div className="text-sm font-semibold text-blue-400 mb-2">Client Details</div>
+                <div className="space-y-1 text-sm text-slate-300">
+                  <div><strong>Name:</strong> {selectedClient.name}</div>
+                  <div><strong>Email:</strong> {selectedClient.email}</div>
+                  <div><strong>Account:</strong> {selectedClient.account}</div>
+                  <div className="flex items-center">
+                    <strong>Status:</strong>
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${selectedClient.status === 'active' ? 'bg-emerald-600/20 text-emerald-400' : 'bg-red-600/20 text-red-400'}`}>
+                      {selectedClient.status}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Payment Details */}
-              <div>
-                <h4 className="text-lg font-semibold text-white mb-3">Payment Details</h4>
-                <div className="bg-gray-700 rounded-lg p-4 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Payment Method:</span>
-                    <span className="text-white capitalize">{selectedTransaction.paymentMethod.replace(/_/g, ' ')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Created At:</span>
-                    <span className="text-white">{new Date(selectedTransaction.createdAt).toLocaleString()}</span>
-                  </div>
-                  {selectedTransaction.completedAt && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Completed At:</span>
-                      <span className="text-white">{new Date(selectedTransaction.completedAt).toLocaleString()}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Comment */}
-              {selectedTransaction.comment && (
+              <div className="space-y-4">
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-3">Comment</h4>
-                  <div className="bg-gray-700 rounded-lg p-4">
-                    <p className="text-white">{selectedTransaction.comment}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Approval Chain - Audit Trail */}
-              <div>
-                <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                  <History className="w-5 h-5" />
-                  Approval Chain & Audit Trail
-                </h4>
-                <div className="space-y-3">
-                  {selectedTransaction.approvalChain.map((step, index) => {
-                    const getIconAndColor = (action) => {
-                      const styles = {
-                        'created': { icon: '📝', bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400' },
-                        'approved': { icon: '✅', bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400' },
-                        'rejected': { icon: '❌', bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400' },
-                        'processing': { icon: '⚙️', bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400' },
-                        'completed': { icon: '🎉', bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400' },
-                        'failed': { icon: '⚠️', bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400' }
-                      };
-                      return styles[action] || { icon: '📋', bg: 'bg-gray-500/10', border: 'border-gray-500/30', text: 'text-gray-400' };
-                    };
-
-                    const style = getIconAndColor(step.action);
-
-                    return (
-                      <div key={index} className={`${style.bg} border-2 ${style.border} rounded-lg p-4 relative`}>
-                        <div className="flex items-start gap-4">
-                          <div className="text-3xl flex-shrink-0">{style.icon}</div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className={`font-bold text-lg capitalize ${style.text}`}>{step.action}</span>
-                              <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded uppercase font-semibold">
-                                {step.role}
-                              </span>
-                            </div>
-                            <div className="text-white font-semibold mb-1">{step.userName}</div>
-                            <div className="text-sm text-gray-400">{new Date(step.timestamp).toLocaleString()}</div>
-                            {step.comment && (
-                              <div className="mt-3 p-3 bg-gray-700/50 rounded border-l-4 border-blue-500">
-                                <div className="text-sm text-gray-300 italic">"{step.comment}"</div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <label className="text-sm text-slate-400 mb-2 block">New Password *</label>
+                  <input 
+                    type="text" 
+                    placeholder="Enter new password (min 6 characters)" 
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white font-mono" 
+                    value={newClientPassword} 
+                    onChange={(e) => setNewClientPassword(e.target.value)} 
+                  />
+                  <p className="text-xs text-slate-500 mt-1">This will replace the client's current password</p>
                 </div>
               </div>
+              
+              <div className="flex space-x-3 mt-6">
+                <button onClick={() => setShowChangePasswordModal(false)} className="flex-1 bg-slate-700 py-3 rounded-lg font-semibold">Cancel</button>
+                <button onClick={handleChangePassword} className="flex-1 bg-blue-600 py-3 rounded-lg font-semibold">Update Password</button>
+              </div>
+            </div>
+          </div>
+        )}
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-gray-700">
-                {selectedTransaction.status === TRANSACTION_STATUS.COMPLETED && (
-                  <button
-                    onClick={() => handlePrintReceipt(selectedTransaction)}
-                    className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+        {/* Wallet Deposit Modal */}
+        {showDepositModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto\">
+            <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-slate-700">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">Deposit to Wallet</h3>
+                <button onClick={() => setShowDepositModal(false)}><X size={24} /></button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-slate-400 mb-2 block">Amount</label>
+                  <input 
+                    type="number" 
+                    placeholder="Enter amount" 
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white text-2xl font-bold" 
+                    value={depositAmount} 
+                    onChange={(e) => setDepositAmount(e.target.value)} 
+                  />
+                </div>
+                <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-3">
+                  <p className="text-xs text-slate-300">
+                    💳 Funds will be added to your wallet balance instantly
+                  </p>
+                </div>
+                <div className="flex space-x-3">
+                  <button onClick={() => setShowDepositModal(false)} className="flex-1 bg-slate-700 py-3 rounded-lg font-semibold">Cancel</button>
+                  <button onClick={handleWalletDeposit} className="flex-1 bg-emerald-600 py-3 rounded-lg font-semibold">Deposit</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Wallet Withdraw Modal */}
+        {showWithdrawModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto\">
+            <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-slate-700">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">Withdraw from Wallet</h3>
+                <button onClick={() => setShowWithdrawModal(false)}><X size={24} /></button>
+              </div>
+              <div className="space-y-4">
+                <div className="bg-slate-900/50 rounded-lg p-3 mb-4">
+                  <div className="text-sm text-slate-400">Available Balance</div>
+                  <div className="text-2xl font-bold">${walletBalance.toLocaleString()}</div>
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400 mb-2 block">Amount</label>
+                  <input 
+                    type="number" 
+                    placeholder="Enter amount" 
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white text-2xl font-bold" 
+                    value={withdrawAmount} 
+                    onChange={(e) => setWithdrawAmount(e.target.value)} 
+                  />
+                </div>
+                <div className="bg-amber-600/10 border border-amber-600/30 rounded-lg p-3">
+                  <p className="text-xs text-slate-300">
+                    ⚠️ Withdrawal will be processed to your registered bank account
+                  </p>
+                </div>
+                <div className="flex space-x-3">
+                  <button onClick={() => setShowWithdrawModal(false)} className="flex-1 bg-slate-700 py-3 rounded-lg font-semibold">Cancel</button>
+                  <button onClick={handleWalletWithdraw} className="flex-1 bg-amber-600 py-3 rounded-lg font-semibold">Withdraw</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Transfer to Client Modal */}
+        {showTransferModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto\">
+            <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-slate-700">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">Transfer to Client</h3>
+                <button onClick={() => setShowTransferModal(false)}><X size={24} /></button>
+              </div>
+              <div className="space-y-4">
+                <div className="bg-slate-900/50 rounded-lg p-3 mb-4">
+                  <div className="text-sm text-slate-400">Wallet Balance</div>
+                  <div className="text-2xl font-bold">${walletBalance.toLocaleString()}</div>
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400 mb-2 block">Select Client</label>
+                  <select 
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white font-semibold"
+                    value={transferToClient}
+                    onChange={(e) => setTransferToClient(e.target.value)}
                   >
-                    <Printer className="w-5 h-5" />
-                    Print Receipt
-                  </button>
-                )}
-                <button
-                  onClick={() => setSelectedTransaction(null)}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                    <option value="">Choose a client...</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>
+                        {client.name} ({client.account})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400 mb-2 block">Amount</label>
+                  <input 
+                    type="number" 
+                    placeholder="Enter amount" 
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white text-2xl font-bold" 
+                    value={transferAmount} 
+                    onChange={(e) => setTransferAmount(e.target.value)} 
+                  />
+                </div>
+                <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-3">
+                  <p className="text-xs text-slate-300">
+                    💸 Transfer funds directly from your wallet to client's trading account
+                  </p>
+                </div>
+                <div className="flex space-x-3">
+                  <button onClick={() => setShowTransferModal(false)} className="flex-1 bg-slate-700 py-3 rounded-lg font-semibold">Cancel</button>
+                  <button onClick={handleTransferToClient} className="flex-1 bg-blue-600 py-3 rounded-lg font-semibold">Transfer</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Client Modal */}
+        {showAddClient && (
+          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-slate-700 my-8 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-xl font-bold mb-4">Add New Client</h3>
+              <div className="space-y-4">
+                <input type="text" placeholder="Full Name *" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={newClient.name} onChange={(e) => setNewClient({...newClient, name: e.target.value})} />
+                <input type="email" placeholder="Email *" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={newClient.email} onChange={(e) => setNewClient({...newClient, email: e.target.value})} />
+                <input type="tel" placeholder="Phone" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={newClient.phone} onChange={(e) => setNewClient({...newClient, phone: e.target.value})} />
+                <input type="number" placeholder="Initial Deposit" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={newClient.initialDeposit} onChange={(e) => setNewClient({...newClient, initialDeposit: e.target.value})} />
+                
+                {/* Account Type Selection */}
+                <div>
+                  <label className="text-sm text-slate-400 mb-2 block">Account Type *</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      type="button"
+                      onClick={() => setNewClient({...newClient, accountType: 'standard'})} 
+                      className={`py-3 px-4 rounded-lg border-2 transition-all ${
+                        newClient.accountType === 'standard' 
+                          ? 'bg-cyan-600/20 border-cyan-600 text-cyan-400' 
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      <div className="text-sm font-semibold">Standard</div>
+                      <div className="text-xs mt-1 opacity-75">Individual trader</div>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setNewClient({...newClient, accountType: 'business'})} 
+                      className={`py-3 px-4 rounded-lg border-2 transition-all ${
+                        newClient.accountType === 'business' 
+                          ? 'bg-purple-600/20 border-purple-600 text-purple-400' 
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      <div className="text-sm font-semibold">Business</div>
+                      <div className="text-xs mt-1 opacity-75">Corporate account</div>
+                    </button>
+                  </div>
+                  <div className="mt-2 bg-blue-600/10 border border-blue-600/30 rounded-lg p-2">
+                    <p className="text-xs text-slate-300">
+                      {newClient.accountType === 'business' 
+                        ? '🏢 Business accounts may have higher limits and additional features' 
+                        : '👤 Standard accounts for individual retail traders'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-sm text-slate-400 mb-2 block">Client Password *</label>
+                  <input 
+                    type="text" 
+                    placeholder="Create password (min 6 characters)" 
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white font-mono" 
+                    value={newClient.password} 
+                    onChange={(e) => setNewClient({...newClient, password: e.target.value})} 
+                  />
+                  <p className="text-xs text-slate-500 mt-1">🔒 This password will be used by the client to log in</p>
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button onClick={() => setShowAddClient(false)} className="flex-1 bg-slate-700 py-3 rounded-lg font-semibold">Cancel</button>
+                <button onClick={handleAddClient} className="flex-1 bg-blue-600 py-3 rounded-lg font-semibold">Add Client</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Client Positions Modal */}
+        {showClientPositionsModal && selectedClient && (
+          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-slate-800 rounded-xl p-6 max-w-6xl w-full border border-slate-700 my-8 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6 sticky top-0 bg-slate-800 pb-4 border-b border-slate-700">
+                <div>
+                  <h3 className="text-2xl font-bold">{selectedClient.name}'s Open Positions</h3>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Account: {selectedClient.account} • Total P&L: 
+                    <span className={`ml-1 font-semibold ${selectedClient.totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      ${selectedClient.totalProfit.toFixed(2)}
+                    </span>
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowClientPositionsModal(false)} 
+                  className="bg-slate-700 hover:bg-slate-600 p-2 rounded-lg"
                 >
-                  Close
+                  <X size={24} />
                 </button>
               </div>
+
+              {/* Account Summary */}
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="text-xs text-slate-400 mb-1">Balance</div>
+                  <div className="text-xl font-bold">${selectedClient.balance.toLocaleString()}</div>
+                </div>
+                <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4">
+                  <div className="text-xs text-slate-400 mb-1">Equity</div>
+                  <div className="text-xl font-bold text-blue-400">${selectedClient.equity.toLocaleString()}</div>
+                </div>
+                <div className="bg-emerald-600/10 border border-emerald-600/30 rounded-lg p-4">
+                  <div className="text-xs text-slate-400 mb-1">Free Margin</div>
+                  <div className="text-xl font-bold text-emerald-400">${selectedClient.freeMargin.toLocaleString()}</div>
+                </div>
+                <div className="bg-purple-600/10 border border-purple-600/30 rounded-lg p-4">
+                  <div className="text-xs text-slate-400 mb-1">Margin Level</div>
+                  <div className="text-xl font-bold text-purple-400">{selectedClient.marginLevel}%</div>
+                </div>
+              </div>
+
+              {/* Positions Table */}
+              {clientPositions[selectedClient.id] && clientPositions[selectedClient.id].length > 0 ? (
+                <div className="bg-slate-900/30 rounded-xl border border-slate-700 overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-slate-900/50">
+                      <tr className="text-left text-sm text-slate-400">
+                        <th className="p-4">Position ID</th>
+                        <th className="p-4">Symbol</th>
+                        <th className="p-4">Type</th>
+                        <th className="p-4">Lots</th>
+                        <th className="p-4">Open Price</th>
+                        <th className="p-4">Current Price</th>
+                        <th className="p-4">SL / TP</th>
+                        <th className="p-4">Profit/Loss</th>
+                        <th className="p-4">Open Time</th>
+                        <th className="p-4">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700">
+                      {clientPositions[selectedClient.id].map(position => (
+                        <tr key={position.id} className="hover:bg-slate-700/30 text-sm">
+                          <td className="p-4 font-mono text-blue-400">{position.id}</td>
+                          <td className="p-4 font-bold">{position.symbol}</td>
+                          <td className="p-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              position.type === 'BUY' 
+                                ? 'bg-blue-600/20 text-blue-400' 
+                                : 'bg-red-600/20 text-red-400'
+                            }`}>
+                              {position.type}
+                            </span>
+                          </td>
+                          <td className="p-4">{position.lots}</td>
+                          <td className="p-4 font-mono">{position.openPrice.toFixed(position.symbol === 'XAUUSD' || position.symbol === 'BTCUSD' ? 2 : 5)}</td>
+                          <td className="p-4 font-mono font-bold">
+                            {position.currentPrice.toFixed(position.symbol === 'XAUUSD' || position.symbol === 'BTCUSD' ? 2 : 5)}
+                          </td>
+                          <td className="p-4 text-xs">
+                            <div className="text-amber-400">SL: {position.sl.toFixed(position.symbol === 'XAUUSD' || position.symbol === 'BTCUSD' ? 2 : 5)}</div>
+                            <div className="text-emerald-400">TP: {position.tp.toFixed(position.symbol === 'XAUUSD' || position.symbol === 'BTCUSD' ? 2 : 5)}</div>
+                          </td>
+                          <td className="p-4">
+                            <span className={`font-bold ${position.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              ${position.profit.toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="p-4 text-slate-400">{position.openTime}</td>
+                          <td className="p-4">
+                            <button 
+                              onClick={() => handleCloseClientPosition(position.id)}
+                              className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-1"
+                            >
+                              <X size={16} />
+                              <span>Close</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-slate-900/30 rounded-xl border border-slate-700 p-12 text-center">
+                  <Activity size={48} className="mx-auto text-slate-600 mb-4" />
+                  <p className="text-slate-400 text-lg">No open positions</p>
+                  <p className="text-slate-500 text-sm mt-2">This client currently has no active trades</p>
+                </div>
+              )}
+
+              <div className="mt-6 bg-amber-600/10 border border-amber-600/30 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-slate-300">
+                    <strong className="text-amber-400">Admin Action:</strong> Closing positions will immediately realize profit/loss. 
+                    Use this carefully and only when necessary (margin call, emergency, etc.). All actions are logged.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
+
+// Manager Wallet Modals (to be added before ManagerDashboard closing)
+// These modals need to be added inside ManagerDashboard return statement
+
+// ==================== CLIENT DASHBOARD ====================
 
 export default AdminDashboard;
