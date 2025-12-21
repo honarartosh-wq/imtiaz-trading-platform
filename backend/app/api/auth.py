@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFi
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional
+import uuid
+from pathlib import Path
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.database import get_db
@@ -70,33 +72,6 @@ async def save_kyc_document(file: UploadFile, user_id: int, doc_type: DocumentTy
 
     return str(file_path)
 
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{field_name}: File size exceeds 5MB limit"
-        )
-
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{field_name}: Invalid file type. Only JPG, PNG, and PDF are allowed"
-        )
-
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{field_name}: Invalid filename"
-        )
-    
-    # 4. Check for double extensions (e.g., file.pdf.exe)
-    if filename.count('.') > 1:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{field_name}: Invalid filename with multiple extensions"
-        )
-    
-    # Reset file pointer for potential re-reading
-    await file.seek(0)
-    
-    return contents
-
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/hour")  # Limit to 5 registration attempts per hour
@@ -128,6 +103,28 @@ async def register(
     """
     
     try:
+        # Fetch and validate branch using referral code
+        branch = db.query(Branch).filter(Branch.referral_code == referral_code).first()
+        if not branch:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid referral code"
+            )
+
+        if not branch.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Branch is not active"
+            )
+
+        # Validate and set account type
+        try:
+            acc_type = AccountType(account_type.lower())
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid account type. Must be 'standard' or 'business'"
+            )
 
         new_user = User(
             email=email,
@@ -135,7 +132,9 @@ async def register(
             name=name,
             phone=phone,
             role=UserRole.CLIENT,
-
+            branch_id=branch.id,
+            referral_code=referral_code,
+            account_type=acc_type
         )
 
         db.add(new_user)
@@ -169,6 +168,49 @@ async def register(
             )
             db.add(kyc_poa)
 
+            # Save business documents if provided (for business accounts)
+            if business_document:
+                business_doc_path = await save_kyc_document(business_document, new_user.id, DocumentType.BUSINESS_DOCUMENT)
+                kyc_business = KYCDocument(
+                    user_id=new_user.id,
+                    document_type=DocumentType.BUSINESS_DOCUMENT,
+                    file_path=business_doc_path,
+                    original_filename=business_document.filename,
+                    file_size=business_document.size or 0,
+                    mime_type=business_document.content_type,
+                    status=DocumentStatus.PENDING
+                )
+                db.add(kyc_business)
+
+            # Save tax documents if provided (for business accounts)
+            if tax_document:
+                tax_doc_path = await save_kyc_document(tax_document, new_user.id, DocumentType.TAX_DOCUMENT)
+                kyc_tax = KYCDocument(
+                    user_id=new_user.id,
+                    document_type=DocumentType.TAX_DOCUMENT,
+                    file_path=tax_doc_path,
+                    original_filename=tax_document.filename,
+                    file_size=tax_document.size or 0,
+                    mime_type=tax_document.content_type,
+                    status=DocumentStatus.PENDING
+                )
+                db.add(kyc_tax)
+
+        except HTTPException:
+            # Re-raise HTTPExceptions from document validation
+            db.rollback()
+            raise
+        except Exception as e:
+            # Handle file system errors, etc.
+            db.rollback()
+            logger.error(f"KYC document save failed for {email}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save KYC documents. Please try again."
+            )
+
+        # Generate unique account number
+        account_number = generate_account_number()
 
         account = Account(
             user_id=new_user.id,
@@ -185,7 +227,7 @@ async def register(
 
         # Log successful registration
         log_security_event("registration", user_email=new_user.email, user_id=new_user.id, success=True,
-
+                          details=f"Branch: {branch.name}, Account type: {acc_type.value}")
 
         return new_user
 
@@ -196,7 +238,7 @@ async def register(
         db.rollback()
         logger.error(f"Registration failed for {email}: {str(e)}")
         log_security_event("registration", user_email=email, success=False,
-
+                          details=f"Error: {type(e).__name__} - {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed. Please try again later."
