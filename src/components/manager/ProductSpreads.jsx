@@ -22,7 +22,6 @@ const ProductSpreads = () => {
       setSpreads(data);
     } catch (err) {
       setError('Failed to load product spreads. Please try again.');
-      console.error('Error loading spreads:', err);
     } finally {
       setLoading(false);
     }
@@ -62,7 +61,6 @@ const ProductSpreads = () => {
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (err) {
       setError(`Failed to update spread for ${symbol}. Please try again.`);
-      console.error('Error saving spread:', err);
     }
   };
 
