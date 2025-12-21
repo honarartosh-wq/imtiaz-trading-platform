@@ -4,12 +4,12 @@ from datetime import datetime
 from typing import Optional
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-import filetype
 from app.database import get_db
 from app.schemas.user import UserCreate, UserLogin, UserResponse, Token
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, KYCStatus, AccountType
 from app.models.branch import Branch
 from app.models.account import Account
+from app.models.kyc_document import KYCDocument, DocumentType, DocumentStatus
 from app.middleware.auth import get_current_user
 from app.utils.security import (
     verify_password,
@@ -25,52 +25,61 @@ logger = get_logger(__name__)
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+# KYC file upload directory
+KYC_UPLOAD_DIR = Path("kyc_uploads")
+KYC_UPLOAD_DIR.mkdir(exist_ok=True)
 
-# File validation constants
+# Allowed file types
+ALLOWED_MIME_TYPES = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "application/pdf"
+]
+
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
-async def validate_kyc_file(file: UploadFile, field_name: str) -> bytes:
-    """
-    Validate uploaded KYC document.
-    
-    Args:
-        file: Uploaded file
-        field_name: Name of the field for error messages
-    
-    Returns:
-        File contents as bytes
-    
-    Raises:
-        HTTPException: If validation fails
-    
-    Security checks:
-    - File size limit (5MB)
-    - MIME type verification using magic numbers
-    - Filename sanitization (prevent path traversal)
-    - No double extensions allowed
-    """
-    # 1. Check file size
-    contents = await file.read()
-    if len(contents) > MAX_FILE_SIZE:
+async def save_kyc_document(file: UploadFile, user_id: int, doc_type: DocumentType) -> str:
+    """Save uploaded KYC document and return file path."""
+    # Validate file type
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file type. Allowed types: JPG, PNG, PDF"
+        )
+
+    # Read file content to check size
+    content = await file.read()
+    file_size = len(content)
+
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File size exceeds maximum allowed size of 5MB"
+        )
+
+    # Generate unique filename
+    file_extension = Path(file.filename).suffix
+    unique_filename = f"{user_id}_{doc_type.value}_{uuid.uuid4()}{file_extension}"
+    file_path = KYC_UPLOAD_DIR / unique_filename
+
+    # Save file
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    return str(file_path)
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"{field_name}: File size exceeds 5MB limit"
         )
-    
-    # 2. Verify MIME type using magic numbers (filetype library)
-    kind = filetype.guess(contents)
-    allowed_types = ['jpg', 'jpeg', 'png', 'pdf']
-    
-    if kind is None or kind.extension not in allowed_types:
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"{field_name}: Invalid file type. Only JPG, PNG, and PDF are allowed"
         )
-    
-    # 3. Validate filename (prevent path traversal)
-    filename = file.filename or ""
-    if '..' in filename or '/' in filename or '\\' in filename:
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"{field_name}: Invalid filename"
@@ -119,99 +128,48 @@ async def register(
     """
     
     try:
-        # Validate all uploaded files
-        id_doc_contents = await validate_kyc_file(id_document, "ID Document")
-        address_doc_contents = await validate_kyc_file(proof_of_address, "Proof of Address")
-        
-        # Business account specific validation
-        business_doc_contents = None
-        tax_doc_contents = None
-        if account_type == "business":
-            if not business_document or not tax_document:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Business accounts require business registration and tax documents"
-                )
-            business_doc_contents = await validate_kyc_file(business_document, "Business Document")
-            tax_doc_contents = await validate_kyc_file(tax_document, "Tax Document")
-        
-        # Check if email already exists
-        existing_user = db.query(User).filter(User.email == email).first()
-        if existing_user:
-            log_security_event("registration", user_email=email, success=False, details="Email already registered")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
-            )
 
-        # Validate referral code and get branch
-        branch = db.query(Branch).filter(Branch.referral_code == referral_code).first()
-        if not branch:
-            log_security_event("registration", user_email=email, success=False, details="Invalid referral code")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid referral code"
-            )
-
-        # Generate unique account number with collision detection
-        max_attempts = 5
-        account_number = None
-        for attempt in range(max_attempts):
-            account_number = generate_account_number()
-            # Check if account number already exists
-            existing_account = db.query(Account).filter(Account.account_number == account_number).first()
-            if not existing_account:
-                break
-        else:
-            # If we exhausted all attempts, raise an error
-            log_security_event("registration", user_email=email, success=False,
-                              details="Failed to generate unique account number")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Unable to generate unique account number. Please try again."
-            )
-
-        # Create user
         new_user = User(
             email=email,
             hashed_password=get_password_hash(password),
             name=name,
             phone=phone,
             role=UserRole.CLIENT,
-            account_type=account_type,
-            account_number=account_number,
-            branch_id=branch.id,
-            referral_code=referral_code,
-            is_active=True,
-            is_verified=False
+
         )
 
         db.add(new_user)
-        db.flush()  # Get the user ID without committing
+        db.flush()  # Get user ID
 
-        # Save KYC documents with secure filenames
-        id_doc_ext = filetype.guess(id_doc_contents).extension
-        address_doc_ext = filetype.guess(address_doc_contents).extension
-        
-        id_doc_path = save_kyc_document(id_doc_contents, new_user.id, "id_document", id_doc_ext)
-        address_doc_path = save_kyc_document(address_doc_contents, new_user.id, "proof_of_address", address_doc_ext)
-        
-        # Log KYC uploads
-        log_kyc_upload(email, new_user.id, "ID_DOCUMENT", True, len(id_doc_contents), f"Saved to {id_doc_path}")
-        log_kyc_upload(email, new_user.id, "PROOF_OF_ADDRESS", True, len(address_doc_contents), f"Saved to {address_doc_path}")
-        
-        # Handle business documents
-        if account_type == "business" and business_doc_contents and tax_doc_contents:
-            business_doc_ext = filetype.guess(business_doc_contents).extension
-            tax_doc_ext = filetype.guess(tax_doc_contents).extension
-            
-            business_doc_path = save_kyc_document(business_doc_contents, new_user.id, "business_document", business_doc_ext)
-            tax_doc_path = save_kyc_document(tax_doc_contents, new_user.id, "tax_document", tax_doc_ext)
-            
-            log_kyc_upload(email, new_user.id, "BUSINESS_DOCUMENT", True, len(business_doc_contents), f"Saved to {business_doc_path}")
-            log_kyc_upload(email, new_user.id, "TAX_DOCUMENT", True, len(tax_doc_contents), f"Saved to {tax_doc_path}")
+        # Save KYC documents
+        try:
+            # Save ID document
+            id_doc_path = await save_kyc_document(id_document, new_user.id, DocumentType.ID_DOCUMENT)
+            kyc_id_doc = KYCDocument(
+                user_id=new_user.id,
+                document_type=DocumentType.ID_DOCUMENT,
+                file_path=id_doc_path,
+                original_filename=id_document.filename,
+                file_size=id_document.size or 0,
+                mime_type=id_document.content_type,
+                status=DocumentStatus.PENDING
+            )
+            db.add(kyc_id_doc)
 
-        # Create account for the user
+            # Save proof of address
+            poa_path = await save_kyc_document(proof_of_address, new_user.id, DocumentType.PROOF_OF_ADDRESS)
+            kyc_poa = KYCDocument(
+                user_id=new_user.id,
+                document_type=DocumentType.PROOF_OF_ADDRESS,
+                file_path=poa_path,
+                original_filename=proof_of_address.filename,
+                file_size=proof_of_address.size or 0,
+                mime_type=proof_of_address.content_type,
+                status=DocumentStatus.PENDING
+            )
+            db.add(kyc_poa)
+
+
         account = Account(
             user_id=new_user.id,
             account_number=account_number,
@@ -222,24 +180,23 @@ async def register(
         )
 
         db.add(account)
-        db.commit()  # Commit both user and account together
+        db.commit()
         db.refresh(new_user)
 
         # Log successful registration
         log_security_event("registration", user_email=new_user.email, user_id=new_user.id, success=True,
-                          details=f"Account created: {account_number} with KYC documents")
-        logger.info(f"New user registered: {new_user.email} (ID: {new_user.id}) with KYC documents")
+
 
         return new_user
 
     except HTTPException:
-        # Re-raise HTTP exceptions (validation errors, etc.)
+
         raise
     except Exception as e:
         db.rollback()
         logger.error(f"Registration failed for {email}: {str(e)}")
         log_security_event("registration", user_email=email, success=False,
-                          details=f"Error: {type(e).__name__}")
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed. Please try again later."
@@ -268,6 +225,27 @@ async def login(request: Request, credentials: UserLogin, db: Session = Depends(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password"
             )
+
+        # Check KYC status for clients
+        if user.role == UserRole.CLIENT:
+            if user.kyc_status == KYCStatus.PENDING:
+                log_security_event("login", user_email=credentials.email, user_id=user.id, success=False, details="KYC pending")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Your KYC documents are pending approval. Please wait for verification."
+                )
+            elif user.kyc_status == KYCStatus.REJECTED:
+                log_security_event("login", user_email=credentials.email, user_id=user.id, success=False, details="KYC rejected")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Your KYC was rejected. Reason: {user.kyc_rejection_reason or 'Please contact support.'}"
+                )
+            elif user.kyc_status != KYCStatus.APPROVED:
+                log_security_event("login", user_email=credentials.email, user_id=user.id, success=False, details="KYC not approved")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Your account is not activated. Please complete KYC verification."
+                )
 
         # Check if user is active
         if not user.is_active:

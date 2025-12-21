@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from datetime import datetime
 import re
-from app.models.user import UserRole, AccountType
+from app.models.user import UserRole, AccountType, KYCStatus
 
 
 class UserBase(BaseModel):
@@ -14,7 +14,7 @@ class UserBase(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=12, max_length=128)
+    password: str = Field(..., min_length=6, max_length=128)
     name: str = Field(..., min_length=1, max_length=100)
     phone: Optional[str] = None
     referral_code: str = Field(..., min_length=1)
@@ -24,28 +24,12 @@ class UserCreate(BaseModel):
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
         """
-        Validate password complexity.
+        Validate password strength.
         Requirements:
-        - At least 12 characters
-        - At least one uppercase letter
-        - At least one lowercase letter
-        - At least one digit
-        - At least one special character
+        - At least 6 characters (matching frontend requirement)
         """
-        if len(v) < 12:
-            raise ValueError('Password must be at least 12 characters long')
-
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
-
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
-            raise ValueError('Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)')
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters long')
 
         return v
 
@@ -66,6 +50,9 @@ class UserResponse(BaseModel):
     branch_id: Optional[int]
     is_active: bool
     is_verified: bool
+    kyc_status: Optional[KYCStatus]
+    kyc_approved_at: Optional[datetime]
+    kyc_rejection_reason: Optional[str]
     created_at: datetime
     last_login: Optional[datetime]
 
