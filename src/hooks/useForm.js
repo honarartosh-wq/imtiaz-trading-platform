@@ -29,7 +29,7 @@ export const useForm = (initialValues, onSubmit) => {
     try {
       await onSubmit(values);
     } catch (error) {
-      console.error('Form submission error:', error);
+      // Error should be handled by the onSubmit callback
     } finally {
       setIsSubmitting(false);
     }
