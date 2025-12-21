@@ -73,6 +73,125 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 python -c "import secrets; import string; chars = string.ascii_letters + string.digits + string.punctuation; print(''.join(secrets.choice(chars) for _ in range(16)))"
 ```
 
+### 2.5. KYC Document Upload Security
+
+#### Overview
+KYC (Know Your Customer) document uploads are critical security points that require comprehensive validation to prevent malicious file uploads and data breaches.
+
+#### Security Measures Implemented
+
+1. **File Size Limits**
+   - Maximum file size: 5MB per document
+   - Enforced at backend level (frontend validation is supplementary)
+   - Prevents denial-of-service through large file uploads
+
+2. **MIME Type Verification**
+   - Uses magic number checking (not extension-based)
+   - Library: `filetype` and `python-magic`
+   - Allowed types: JPG, JPEG, PNG, PDF only
+   - Prevents executable file uploads disguised as documents
+
+3. **Filename Sanitization**
+   - No path traversal characters (`..`, `/`, `\`)
+   - No multiple extensions (e.g., `file.pdf.exe`)
+   - Prevents directory traversal attacks
+   - Files saved with secure random names
+
+4. **Secure File Storage**
+   - Files stored outside web root: `secure_storage/kyc_documents/`
+   - User-specific directories: `secure_storage/kyc_documents/{user_id}/`
+   - Random filename generation: `{user_id}_{doc_type}_{timestamp}_{random}.{ext}`
+   - Restrictive permissions: `0o600` (owner read/write only)
+
+5. **Audit Logging**
+   - All uploads logged with:
+     - User email and ID
+     - Document type
+     - File size
+     - Success/failure status
+     - Timestamp and file path
+   - Logs stored for compliance and forensics
+
+#### Supported File Types and Limits
+
+| Document Type | Required | Format | Max Size |
+|--------------|----------|--------|----------|
+| ID Document | Yes | JPG, PNG, PDF | 5MB |
+| Proof of Address | Yes | JPG, PNG, PDF | 5MB |
+| Business Registration | Business only | JPG, PNG, PDF | 5MB |
+| Tax Document | Business only | JPG, PNG, PDF | 5MB |
+
+#### Validation Flow
+
+```
+User Upload → Frontend Validation (file presence)
+            ↓
+Backend Validation (comprehensive):
+  1. Check file size ≤ 5MB
+  2. Verify MIME type using magic numbers
+  3. Validate filename (no path traversal)
+  4. Check for double extensions
+  5. Generate secure random filename
+  6. Save with restrictive permissions (0o600)
+  7. Log upload attempt with full audit trail
+            ↓
+Success: Return 201 with user data
+Failure: Return 400 with specific error message
+```
+
+#### Error Messages
+
+The system returns specific error messages to help users:
+- `"ID Document: File size exceeds 5MB limit"`
+- `"Proof of Address: Invalid file type. Only JPG, PNG, and PDF are allowed"`
+- `"Business Document: Invalid filename"`
+- `"Tax Document: Invalid filename with multiple extensions"`
+
+#### Future Enhancements
+
+**Planned security improvements:**
+- Virus scanning integration (ClamAV)
+- File encryption at rest (AES-256)
+- OCR validation for document authenticity
+- Automated document expiry checking
+- Duplicate document detection
+- Image forensics (EXIF data validation)
+
+#### Production Recommendations
+
+⚠️ **Before production deployment:**
+
+1. **Enable virus scanning**
+   ```python
+   # Install ClamAV
+   sudo apt-get install clamav clamav-daemon
+   
+   # Integrate in file validation
+   import pyclamd
+   cd = pyclamd.ClamdUnixSocket()
+   scan_result = cd.scan_stream(file_contents)
+   ```
+
+2. **Implement file encryption at rest**
+   ```python
+   from cryptography.fernet import Fernet
+   # Encrypt files before storage
+   # Store encryption key in secure vault
+   ```
+
+3. **Set up monitoring**
+   - Alert on suspicious upload patterns
+   - Monitor for large file uploads
+   - Track failed validation attempts
+   - Review audit logs regularly
+
+4. **Regular security audits**
+   - Review stored documents quarterly
+   - Verify file permissions
+   - Check for orphaned files
+   - Validate audit trail integrity
+
+
 ### 3. Environment Variables & Secrets
 
 #### Critical Secrets
