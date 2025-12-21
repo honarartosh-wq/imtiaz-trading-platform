@@ -10,22 +10,28 @@ export const AuthProvider = ({ children }) => {
   // Check for existing session on mount
   useEffect(() => {
     const loadUser = async () => {
-      const token = localStorage.getItem('accessToken');
-      const storedUser = localStorage.getItem('user');
-      
-      if (token && storedUser) {
-        try {
-          // Verify token is still valid by fetching current user
-          const currentUser = await getCurrentUser();
-          setUser(currentUser);
-        } catch (error) {
-          // Token invalid or expired, clear storage
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
+      try {
+        const token = localStorage.getItem('accessToken');
+        const storedUser = localStorage.getItem('user');
+        
+        if (token && storedUser) {
+          try {
+            // Verify token is still valid by fetching current user
+            const currentUser = await getCurrentUser();
+            setUser(currentUser);
+          } catch (error) {
+            // Token invalid or expired, clear storage
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+          }
         }
+      } catch (error) {
+        // localStorage disabled or full - gracefully handle
+        console.warn('Unable to access localStorage:', error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     
     loadUser();

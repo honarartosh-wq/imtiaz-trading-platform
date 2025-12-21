@@ -68,6 +68,16 @@ class Settings(BaseSettings):
                 "Generate with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
         
+        # Check SECRET_KEY character diversity for cryptographic strength
+        if self.SECRET_KEY and len(self.SECRET_KEY) >= 32:
+            has_alpha = any(c.isalpha() for c in self.SECRET_KEY)
+            has_digit = any(c.isdigit() for c in self.SECRET_KEY)
+            if not (has_alpha and has_digit):
+                raise ValueError(
+                    "SECRET_KEY should contain both letters and numbers for better security. "
+                    "Use the recommended generation command."
+                )
+        
         if not self.ADMIN_EMAIL:
             raise ValueError("ADMIN_EMAIL is required for initial setup")
         

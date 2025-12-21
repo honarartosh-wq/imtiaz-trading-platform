@@ -7,8 +7,11 @@
  * 
  * SECURITY ISSUES:
  * 1. Stores financial data in localStorage (vulnerable to XSS attacks)
+ *    - XSS: Malicious scripts can read/modify localStorage data
+ *    - Local File Access: Browser extensions or malware can access localStorage
+ *    - Session Hijacking: Data persists even after logout
  * 2. No server-side validation or authorization
- * 3. Client-side only - data can be manipulated by users
+ * 3. Client-side only - data can be manipulated by users via DevTools
  * 4. No encryption or data protection
  * 5. No audit trail persistence or backup
  * 
