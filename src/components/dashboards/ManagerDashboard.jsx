@@ -13,7 +13,9 @@ import {
   History,
   UserCog,
   FileText,
-  Shield
+  Shield,
+  Droplet,
+  ArrowLeftRight
 } from 'lucide-react';
 import ProductSpreads from '../manager/ProductSpreads';
 import BranchCommissions from '../manager/BranchCommissions';
@@ -21,6 +23,8 @@ import TransactionManagement from '../manager/TransactionManagement';
 import ClientManagement from '../manager/ClientManagement';
 import UserManagement from '../manager/UserManagement';
 import Reports from '../manager/Reports';
+import LiquidityProviders from '../manager/LiquidityProviders';
+import RoutingConfiguration from '../manager/RoutingConfiguration';
 import { getBranches, getUsers, getTransactions, getAccounts } from '../../services/api';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 
@@ -228,6 +232,32 @@ const ManagerDashboard = ({ user, onLogout }) => {
                 Reports
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('liquidity')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'liquidity'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Droplet className="w-4 h-4" />
+                Liquidity Providers
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('routing')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'routing'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <ArrowLeftRight className="w-4 h-4" />
+                Routing
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -322,6 +352,10 @@ const ManagerDashboard = ({ user, onLogout }) => {
         {activeTab === 'branches' && <BranchCommissions />}
 
         {activeTab === 'reports' && <Reports />}
+
+        {activeTab === 'liquidity' && <LiquidityProviders />}
+
+        {activeTab === 'routing' && <RoutingConfiguration />}
       </main>
     </div>
   );
