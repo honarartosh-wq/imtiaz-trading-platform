@@ -70,19 +70,32 @@ api.interceptors.response.use(
 // ==================== Authentication APIs ====================
 
 /**
- * Register a new user
- * @param {Object} userData - User registration data
+ * Register a new user with KYC documents
+ * @param {FormData|Object} userData - User registration data (FormData for KYC uploads or Object for simple registration)
  * @returns {Promise} User response with tokens
  */
 export const register = async (userData) => {
-  const response = await api.post('/api/auth/register', {
+  // Check if userData is FormData (for KYC document uploads)
+  const isFormData = userData instanceof FormData;
+
+  // If it's FormData, send as-is with multipart/form-data
+  // Otherwise, convert to the expected format
+  const config = isFormData ? {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  } : {};
+
+  const payload = isFormData ? userData : {
     email: userData.email,
     password: userData.password,
     name: userData.name,
     phone: userData.phone || null,
     referral_code: userData.referralCode,
     account_type: userData.accountType || 'standard',
-  });
+  };
+
+  const response = await api.post('/api/auth/register', payload, config);
   return response.data;
 };
 

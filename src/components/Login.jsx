@@ -18,7 +18,12 @@ const Login = () => {
     password: '',
     confirmPassword: '',
     referralCode: '',
-    accountType: 'standard' // 'standard' or 'business'
+    accountType: 'standard', // 'standard' or 'business'
+    // KYC Documents
+    idDocument: null,
+    proofOfAddress: null,
+    businessDocument: null, // Only for business accounts
+    taxDocument: null // Only for business accounts
   });
 
   const [error, setError] = useState('');
@@ -63,20 +68,54 @@ const Login = () => {
       return;
     }
 
+    // KYC Document Validation
+    if (!registerForm.idDocument) {
+      setError('ID/Passport document is required for KYC verification');
+      return;
+    }
+
+    if (!registerForm.proofOfAddress) {
+      setError('Proof of address document is required for KYC verification');
+      return;
+    }
+
+    // Business account specific validation
+    if (registerForm.accountType === 'business') {
+      if (!registerForm.businessDocument) {
+        setError('Business registration document is required for business accounts');
+        return;
+      }
+      if (!registerForm.taxDocument) {
+        setError('Tax identification document is required for business accounts');
+        return;
+      }
+    }
+
     try {
       setLoading(true);
 
-      // Call the API register function
-      const response = await registerAPI({
-        name: registerForm.name,
-        email: registerForm.email,
-        phone: registerForm.phone,
-        password: registerForm.password,
-        referralCode: registerForm.referralCode,
-        accountType: registerForm.accountType
-      });
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('name', registerForm.name);
+      formData.append('email', registerForm.email);
+      formData.append('phone', registerForm.phone || '');
+      formData.append('password', registerForm.password);
+      formData.append('referral_code', registerForm.referralCode);
+      formData.append('account_type', registerForm.accountType);
 
-      setSuccess('Account created successfully! You can now login with your credentials.');
+      // Append KYC documents
+      formData.append('id_document', registerForm.idDocument);
+      formData.append('proof_of_address', registerForm.proofOfAddress);
+
+      if (registerForm.accountType === 'business') {
+        formData.append('business_document', registerForm.businessDocument);
+        formData.append('tax_document', registerForm.taxDocument);
+      }
+
+      // Call the API register function with FormData
+      const response = await registerAPI(formData);
+
+      setSuccess('Account created successfully! Your KYC documents are pending approval. You will receive an email once your account is verified.');
 
       // Reset form
       setRegisterForm({
@@ -86,15 +125,19 @@ const Login = () => {
         password: '',
         confirmPassword: '',
         referralCode: '',
-        accountType: 'standard'
+        accountType: 'standard',
+        idDocument: null,
+        proofOfAddress: null,
+        businessDocument: null,
+        taxDocument: null
       });
 
-      // Switch to login mode after 2 seconds
+      // Switch to login mode after 4 seconds (longer to read the message)
       setTimeout(() => {
         setIsRegisterMode(false);
         setEmail(registerForm.email); // Pre-fill email for convenience
         setSuccess('');
-      }, 2000);
+      }, 4000);
 
     } catch (err) {
       const errorMessage = err.response?.data?.detail ||
@@ -104,6 +147,24 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFileChange = (fieldName, file) => {
+    // Validate file size (max 5MB)
+    if (file && file.size > 5 * 1024 * 1024) {
+      setError('File size must be less than 5MB');
+      return;
+    }
+
+    // Validate file type (images and PDFs only)
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (file && !allowedTypes.includes(file.type)) {
+      setError('Only JPG, PNG, and PDF files are allowed');
+      return;
+    }
+
+    setError(''); // Clear any previous errors
+    setRegisterForm({ ...registerForm, [fieldName]: file });
   };
 
   const quickLogin = (role) => {
@@ -313,6 +374,86 @@ const Login = () => {
                     <div className="text-xs opacity-75 mt-1">Corporate Account</div>
                   </button>
                 </div>
+              </div>
+
+              {/* KYC Documents Section */}
+              <div className="border-t border-gray-600 pt-4">
+                <h3 className="text-sm font-semibold text-gray-300 mb-3">KYC Documents (Required)</h3>
+                <p className="text-xs text-gray-400 mb-4">Upload clear copies of your documents. Accepted formats: JPG, PNG, PDF (Max 5MB each)</p>
+
+                {/* ID/Passport Document */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    ID/Passport Document *
+                  </label>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={(e) => handleFileChange('idDocument', e.target.files[0])}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-green-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+                    required
+                  />
+                  {registerForm.idDocument && (
+                    <p className="text-xs text-green-400 mt-1">✓ {registerForm.idDocument.name}</p>
+                  )}
+                </div>
+
+                {/* Proof of Address */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Proof of Address *
+                  </label>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={(e) => handleFileChange('proofOfAddress', e.target.files[0])}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-green-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+                    required
+                  />
+                  {registerForm.proofOfAddress && (
+                    <p className="text-xs text-green-400 mt-1">✓ {registerForm.proofOfAddress.name}</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">Utility bill, bank statement, or lease agreement</p>
+                </div>
+
+                {/* Business Documents - Only show for business accounts */}
+                {registerForm.accountType === 'business' && (
+                  <>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Business Registration Document *
+                      </label>
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        onChange={(e) => handleFileChange('businessDocument', e.target.files[0])}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-green-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700"
+                        required
+                      />
+                      {registerForm.businessDocument && (
+                        <p className="text-xs text-green-400 mt-1">✓ {registerForm.businessDocument.name}</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1">Certificate of incorporation or business license</p>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Tax Identification Document *
+                      </label>
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        onChange={(e) => handleFileChange('taxDocument', e.target.files[0])}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-green-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700"
+                        required
+                      />
+                      {registerForm.taxDocument && (
+                        <p className="text-xs text-green-400 mt-1">✓ {registerForm.taxDocument.name}</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1">Tax ID or EIN document</p>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div>
