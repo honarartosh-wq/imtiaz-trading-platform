@@ -1566,6 +1566,4 @@ Generated on: ${new Date().toLocaleString()}
   );
 };
 
-// ==================== ADMIN DASHBOARD ====================
-
 export default ManagerDashboard;
