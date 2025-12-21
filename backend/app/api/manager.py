@@ -7,11 +7,19 @@ from app.schemas.manager import (
     ProductSpreadUpdate,
     ProductSpreadResponse,
     BranchCommissionUpdate,
-    BranchResponse
+    BranchResponse,
+    LiquidityProviderCreate,
+    LiquidityProviderUpdate,
+    LiquidityProviderResponse,
+    RoutingRuleCreate,
+    RoutingRuleUpdate,
+    RoutingRuleResponse
 )
 from app.models.product_spread import ProductSpread
 from app.models.branch import Branch
 from app.models.user import User, UserRole
+from app.models.liquidity_provider import LiquidityProvider
+from app.models.routing_rule import RoutingRule
 from app.middleware.auth import get_current_user
 from app.utils.logging import get_logger
 
@@ -235,4 +243,257 @@ async def update_branch_commission(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update branch commission. Please try again later."
+        )
+
+
+# ==================== Liquidity Provider Endpoints ====================
+
+@router.get("/liquidity-providers", response_model=List[LiquidityProviderResponse])
+async def get_all_liquidity_providers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """Get all liquidity providers (manager only)."""
+    lps = db.query(LiquidityProvider).all()
+    return lps
+
+
+@router.get("/liquidity-providers/{lp_id}", response_model=LiquidityProviderResponse)
+async def get_liquidity_provider(
+    lp_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """Get a specific liquidity provider (manager only)."""
+    lp = db.query(LiquidityProvider).filter(LiquidityProvider.id == lp_id).first()
+    if not lp:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Liquidity provider with ID {lp_id} not found"
+        )
+    return lp
+
+
+@router.post("/liquidity-providers", response_model=LiquidityProviderResponse, status_code=status.HTTP_201_CREATED)
+async def create_liquidity_provider(
+    lp_data: LiquidityProviderCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """Create a new liquidity provider (manager only)."""
+
+    # Check if LP with same code already exists
+    existing_lp = db.query(LiquidityProvider).filter(
+        LiquidityProvider.code == lp_data.code
+    ).first()
+
+    if existing_lp:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Liquidity provider with code {lp_data.code} already exists"
+        )
+
+    try:
+        new_lp = LiquidityProvider(**lp_data.dict())
+        db.add(new_lp)
+        db.commit()
+        db.refresh(new_lp)
+
+        logger.info(f"Liquidity provider {new_lp.name} created by manager {current_user.email}")
+        return new_lp
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to create liquidity provider: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create liquidity provider. Please try again later."
+        )
+
+
+@router.put("/liquidity-providers/{lp_id}", response_model=LiquidityProviderResponse)
+async def update_liquidity_provider(
+    lp_id: int,
+    lp_data: LiquidityProviderUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """Update a liquidity provider (manager only)."""
+
+    lp = db.query(LiquidityProvider).filter(LiquidityProvider.id == lp_id).first()
+    if not lp:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Liquidity provider with ID {lp_id} not found"
+        )
+
+    try:
+        update_data = lp_data.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(lp, key, value)
+
+        db.commit()
+        db.refresh(lp)
+
+        logger.info(f"Liquidity provider {lp.name} updated by manager {current_user.email}")
+        return lp
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update liquidity provider {lp_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update liquidity provider. Please try again later."
+        )
+
+
+@router.delete("/liquidity-providers/{lp_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_liquidity_provider(
+    lp_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """Delete a liquidity provider (manager only)."""
+
+    lp = db.query(LiquidityProvider).filter(LiquidityProvider.id == lp_id).first()
+    if not lp:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Liquidity provider with ID {lp_id} not found"
+        )
+
+    try:
+        db.delete(lp)
+        db.commit()
+
+        logger.info(f"Liquidity provider {lp.name} deleted by manager {current_user.email}")
+        return None
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete liquidity provider {lp_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete liquidity provider. Please try again later."
+        )
+
+
+# ==================== Routing Rule Endpoints ====================
+
+@router.get("/routing-rules", response_model=List[RoutingRuleResponse])
+async def get_all_routing_rules(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """Get all routing rules (manager only)."""
+    rules = db.query(RoutingRule).order_by(RoutingRule.priority).all()
+    return rules
+
+
+@router.get("/routing-rules/{rule_id}", response_model=RoutingRuleResponse)
+async def get_routing_rule(
+    rule_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """Get a specific routing rule (manager only)."""
+    rule = db.query(RoutingRule).filter(RoutingRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Routing rule with ID {rule_id} not found"
+        )
+    return rule
+
+
+@router.post("/routing-rules", response_model=RoutingRuleResponse, status_code=status.HTTP_201_CREATED)
+async def create_routing_rule(
+    rule_data: RoutingRuleCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """Create a new routing rule (manager only)."""
+
+    try:
+        new_rule = RoutingRule(**rule_data.dict(), created_by=current_user.id)
+        db.add(new_rule)
+        db.commit()
+        db.refresh(new_rule)
+
+        logger.info(f"Routing rule '{new_rule.name}' created by manager {current_user.email}")
+        return new_rule
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to create routing rule: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create routing rule. Please try again later."
+        )
+
+
+@router.put("/routing-rules/{rule_id}", response_model=RoutingRuleResponse)
+async def update_routing_rule(
+    rule_id: int,
+    rule_data: RoutingRuleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """Update a routing rule (manager only)."""
+
+    rule = db.query(RoutingRule).filter(RoutingRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Routing rule with ID {rule_id} not found"
+        )
+
+    try:
+        update_data = rule_data.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(rule, key, value)
+
+        db.commit()
+        db.refresh(rule)
+
+        logger.info(f"Routing rule '{rule.name}' updated by manager {current_user.email}")
+        return rule
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update routing rule {rule_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update routing rule. Please try again later."
+        )
+
+
+@router.delete("/routing-rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_routing_rule(
+    rule_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """Delete a routing rule (manager only)."""
+
+    rule = db.query(RoutingRule).filter(RoutingRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Routing rule with ID {rule_id} not found"
+        )
+
+    try:
+        db.delete(rule)
+        db.commit()
+
+        logger.info(f"Routing rule '{rule.name}' deleted by manager {current_user.email}")
+        return None
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete routing rule {rule_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete routing rule. Please try again later."
         )
