@@ -15,7 +15,8 @@ import {
   FileText,
   Shield,
   Droplet,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Activity
 } from 'lucide-react';
 import ProductSpreads from '../manager/ProductSpreads';
 import BranchCommissions from '../manager/BranchCommissions';
@@ -25,6 +26,9 @@ import UserManagement from '../manager/UserManagement';
 import Reports from '../manager/Reports';
 import LiquidityProviders from '../manager/LiquidityProviders';
 import RoutingConfiguration from '../manager/RoutingConfiguration';
+import ManagerSettings from '../manager/ManagerSettings';
+import RiskManagement from '../manager/RiskManagement';
+import ManagerAuditLog from '../manager/ManagerAuditLog';
 import { getBranches, getUsers, getTransactions, getAccounts } from '../../services/api';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 
@@ -258,6 +262,45 @@ const ManagerDashboard = ({ user, onLogout }) => {
                 Routing
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('risk')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'risk'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Risk
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'settings'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                Settings
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('auditLog')}
+              className={`py-4 px-2 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'auditLog'
+                  ? 'border-blue-500 text-blue-500'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4" />
+                Audit Log
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -356,6 +399,12 @@ const ManagerDashboard = ({ user, onLogout }) => {
         {activeTab === 'liquidity' && <LiquidityProviders />}
 
         {activeTab === 'routing' && <RoutingConfiguration />}
+
+        {activeTab === 'risk' && <RiskManagement />}
+
+        {activeTab === 'settings' && <ManagerSettings user={user} />}
+
+        {activeTab === 'auditLog' && <ManagerAuditLog user={user} />}
       </main>
     </div>
   );
