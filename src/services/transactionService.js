@@ -1,6 +1,31 @@
 /**
  * Professional Transaction Service
  * Manages all financial transactions with approval workflow and audit trail
+ * 
+ * ==================== CRITICAL SECURITY WARNING ====================
+ * THIS IMPLEMENTATION IS FOR DEMO/DEVELOPMENT PURPOSES ONLY!
+ * 
+ * SECURITY ISSUES:
+ * 1. Stores financial data in localStorage (vulnerable to XSS attacks)
+ *    - XSS: Malicious scripts can read/modify localStorage data
+ *    - Local File Access: Browser extensions or malware can access localStorage
+ *    - Session Hijacking: Data persists even after logout
+ * 2. No server-side validation or authorization
+ * 3. Client-side only - data can be manipulated by users via DevTools
+ * 4. No encryption or data protection
+ * 5. No audit trail persistence or backup
+ * 
+ * PRODUCTION REQUIREMENTS:
+ * - MUST use backend API with proper authentication
+ * - MUST implement server-side transaction validation
+ * - MUST use database for transaction persistence
+ * - MUST implement proper audit logging
+ * - MUST use HTTPS for all financial transactions
+ * - MUST implement transaction signing/verification
+ * - MUST comply with financial regulations (PCI-DSS, etc.)
+ * 
+ * TODO: Replace this entire service with backend API calls before production
+ * ==================================================================
  */
 
 // Transaction Status Flow:
@@ -44,17 +69,22 @@ export const INITIATOR_ROLE = {
 
 class TransactionService {
   constructor() {
-    // In a real app, this would be in a database
+    // WARNING: In production, all transactions MUST be handled by backend API
+    // This localStorage implementation is ONLY for demo purposes
     this.transactions = this.loadTransactions();
     this.transactionIdCounter = this.transactions.length + 1000;
   }
 
   loadTransactions() {
+    // WARNING: localStorage is NOT secure for financial data
+    // Production MUST use encrypted backend database
     const stored = localStorage.getItem('transactions');
     return stored ? JSON.parse(stored) : [];
   }
 
   saveTransactions() {
+    // WARNING: This exposes financial data to XSS attacks
+    // Production MUST persist to secure backend database
     localStorage.setItem('transactions', JSON.stringify(this.transactions));
   }
 

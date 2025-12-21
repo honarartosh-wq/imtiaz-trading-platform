@@ -4,13 +4,13 @@ import { TrendingUp, Copy, CheckCircle, DollarSign, Activity, BarChart3, Clock, 
 const ManagerDashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [branches, setBranches] = useState([
-    { id: 1, name: 'Main Branch', code: 'MAIN-001', status: 'active', clients: 156, balance: 2450000, leverage: 100, commissionPerLot: 5.0, admin: { name: 'Sarah Admin', email: 'admin@imtiaz.com', password: 'admin123', status: 'active' }, transactions: [
+    { id: 1, name: 'Main Branch', code: 'MAIN-001', status: 'active', clients: 156, balance: 2450000, leverage: 100, commissionPerLot: 5.0, admin: { name: 'Sarah Admin', email: 'admin@imtiaz.com', password: '********', status: 'active' }, transactions: [
       { id: 1, date: '2025-11-15 10:30:00', type: 'deposit', amount: 500000, balance: 2000000, description: 'Initial capital deposit', performedBy: 'System' },
       { id: 2, date: '2025-11-16 14:20:00', type: 'commission', amount: 2450, balance: 2002450, description: 'Client trading commissions', performedBy: 'Auto' },
       { id: 3, date: '2025-11-17 09:15:00', type: 'deposit', amount: 300000, balance: 2302450, description: 'Additional funding', performedBy: 'Manager' },
       { id: 4, date: '2025-11-18 16:45:00', type: 'withdrawal', amount: 150000, balance: 2152450, description: 'Branch operational expenses', performedBy: 'Manager' }
     ] },
-    { id: 2, name: 'Downtown Branch', code: 'DT-002', status: 'active', clients: 98, balance: 1890000, leverage: 500, commissionPerLot: 3.5, admin: { name: 'Mike Smith', email: 'mike@imtiaz.com', password: 'admin456', status: 'active' }, transactions: [
+    { id: 2, name: 'Downtown Branch', code: 'DT-002', status: 'active', clients: 98, balance: 1890000, leverage: 500, commissionPerLot: 3.5, admin: { name: 'Mike Smith', email: 'mike@imtiaz.com', password: '********', status: 'active' }, transactions: [
       { id: 1, date: '2025-11-14 11:00:00', type: 'deposit', amount: 800000, balance: 800000, description: 'Branch opening capital', performedBy: 'System' },
       { id: 2, date: '2025-11-16 13:30:00', type: 'commission', amount: 1890, balance: 801890, description: 'Trading commissions collected', performedBy: 'Auto' },
       { id: 3, date: '2025-11-17 10:00:00', type: 'deposit', amount: 500000, balance: 1301890, description: 'Client deposits', performedBy: 'Admin' }
