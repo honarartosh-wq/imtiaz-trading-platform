@@ -13,7 +13,7 @@ export const useLocalStorage = (key, initialValue) => {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
-      console.error('Error reading from localStorage:', error);
+      // Failed to read from localStorage, return initial value
       return initialValue;
     }
   });
@@ -27,7 +27,7 @@ export const useLocalStorage = (key, initialValue) => {
       setStoredValue(valueToStore);
       window.localStorage.setItem(key, JSON.stringify(valueToStore));
     } catch (error) {
-      console.error('Error writing to localStorage:', error);
+      // Failed to write to localStorage, state still updated
     }
   };
 
@@ -37,7 +37,7 @@ export const useLocalStorage = (key, initialValue) => {
       window.localStorage.removeItem(key);
       setStoredValue(initialValue);
     } catch (error) {
-      console.error('Error removing from localStorage:', error);
+      // Failed to remove from localStorage, still reset state
     }
   };
 
