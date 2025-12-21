@@ -402,13 +402,7 @@ Amount: $${request.amount.toLocaleString()}
 
 The transaction has been approved and sent to the Manager for final processing.`);
 
-      console.log('Transaction Approved:', {
-        ...request,
-        approvedBy: user.name,
-        approvedAt: new Date().toISOString(),
-        status: 'approved',
-        notifyManager: true
-      });
+      // Transaction approved and sent to Manager for final processing
 
       // Remove from pending list
       setPendingRequests(pendingRequests.filter(r => r.id !== request.id));
@@ -427,14 +421,7 @@ Reason: ${reason}
 
 The client will be notified of the rejection.`);
 
-      console.log('Transaction Rejected:', {
-        ...request,
-        rejectedBy: user.name,
-        rejectedAt: new Date().toISOString(),
-        rejectionReason: reason,
-        status: 'rejected',
-        notifyClient: true
-      });
+      // Transaction rejected, client will be notified
 
       // Remove from pending list
       setPendingRequests(pendingRequests.filter(r => r.id !== request.id));
@@ -786,15 +773,7 @@ The client will be notified of the rejection.`);
     // Generate account number
     const accountNumber = `CLT-${String(clients.length + 1).padStart(3, '0')}`;
 
-    console.log('New Client Created (Admin):', {
-      ...newClient,
-      password: '***hidden***', // Don't log actual password
-      accountNumber,
-      status: 'active',
-      kyc: 'pending',
-      createdBy: 'admin',
-      createdAt: new Date().toISOString()
-    });
+    // New client created by admin with pending KYC status
 
     alert(`Client ${newClient.name} created successfully!\nAccount Number: ${accountNumber}\nEmail: ${newClient.email}\nPassword has been set by admin.`);
 
