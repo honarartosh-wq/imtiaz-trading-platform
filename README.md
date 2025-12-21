@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-## Demo Credentials
-- Manager: manager@imtiaz.com / manager123
-- Admin: admin@imtiaz.com / admin123
-- Client: client@example.com / client123
+## Authentication
+All authentication is handled through the backend API. Please ensure the backend server is running before attempting to login.
+
+For demo credentials, contact your system administrator or refer to the backend initialization script.

@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { TrendingUp, Users, Shield, Building2, Copy, CheckCircle, DollarSign, Activity, BarChart3, Clock, Download, Upload, Eye, EyeOff, Plus, X, AlertTriangle, Server, Settings, Zap, Globe, Edit2, Trash2, Phone, FileText, RefreshCw, Key } from 'lucide-react';
 
+// ==================== DEPRECATED FILE - DO NOT USE ====================
+// This file is a backup of a previous implementation and should NOT be used.
+// Contains hardcoded credentials and mock data that is NOT secure.
+// Kept for reference only - use src/App.jsx instead.
+// ======================================================================
+
 // ==================== CONSTANTS ====================
 const TRADING_SYMBOLS = ['EURUSD', 'GBPUSD', 'USDJPY', 'XAUUSD', 'BTCUSD'];
 
@@ -26,20 +32,11 @@ const ImtiazTradingPlatform = () => {
     'branch_002': { id: 'branch_002', name: 'Downtown Branch', code: 'DT-002', logo: '' }
   };
 
-  // WARNING: Demo credentials for testing only - NEVER store credentials in frontend code in production
-  // In production, use proper authentication with backend API and secure password handling
-  const mockUsers = {
-    'manager@imtiaz.com': { password: 'manager123', type: 'manager', id: 'mgr_001', name: 'John Manager', email: 'manager@imtiaz.com' },
-    'admin@imtiaz.com': { password: 'admin123', type: 'admin', id: 'admin_001', name: 'Sarah Admin', email: 'admin@imtiaz.com', branchId: 'branch_001', branchName: 'Main Branch', branchCode: 'MAIN-001', referralCode: 'MAIN001-REF' },
-    'client@example.com': { password: 'client123', type: 'client', id: 'client_001', name: 'John Smith', email: 'client@example.com', accountNumber: 'ACC-10001', branchId: 'branch_001', accountType: 'standard' },
-    'business@example.com': { password: 'business123', type: 'client', id: 'client_002', name: 'Tech Corp', email: 'business@example.com', accountNumber: 'ACC-10002', branchId: 'branch_001', accountType: 'business' }
-  };
+  // DEPRECATED: Mock credentials removed for security
+  // This backup file should not be used - see src/App.jsx for current implementation
+  const mockUsers = {};
 
-  const branchReferralCodes = {
-    'MAIN001-REF': { branchId: 'branch_001', branchName: 'Main Branch', branchCode: 'MAIN-001' },
-    'DT002-REF': { branchId: 'branch_002', branchName: 'Downtown Branch', branchCode: 'DT-002' },
-    'WEST003-REF': { branchId: 'branch_003', branchName: 'West Branch', branchCode: 'WEST-003' }
-  };
+  const branchReferralCodes = {};
 
   const handleLogin = () => {
     setLoginError('');

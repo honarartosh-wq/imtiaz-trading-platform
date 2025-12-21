@@ -1,56 +1,64 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { login as apiLogin, logout as apiLogout, getCurrentUser } from '../services/api';
 
 const AuthContext = createContext(null);
 
-// WARNING: Demo users for testing only - NEVER store credentials in frontend code in production
-// In production, use proper authentication with backend API and secure password handling
-const DEMO_USERS = [
-  {
-    id: 1,
-    email: 'manager@imtiaz.com',
-    password: 'manager123',
-    role: 'manager',
-    name: 'Manager User',
-    branches: ['Branch A', 'Branch B', 'Branch C']
-  },
-  {
-    id: 2,
-    email: 'admin@imtiaz.com',
-    password: 'admin123',
-    role: 'admin',
-    name: 'Admin User',
-    branch: 'Branch A'
-  },
-  {
-    id: 3,
-    email: 'client@example.com',
-    password: 'client123',
-    role: 'client',
-    name: 'John Doe',
-    accountNumber: 'CLT-001',
-    balance: 50000,
-    branch: 'Branch A'
-  }
-];
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = (email, password) => {
-    const foundUser = DEMO_USERS.find(
-      u => u.email === email && u.password === password
-    );
+  // Check for existing session on mount
+  useEffect(() => {
+    const loadUser = async () => {
+      const token = localStorage.getItem('accessToken');
+      const storedUser = localStorage.getItem('user');
+      
+      if (token && storedUser) {
+        try {
+          // Verify token is still valid by fetching current user
+          const currentUser = await getCurrentUser();
+          setUser(currentUser);
+        } catch (error) {
+          // Token invalid or expired, clear storage
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+        }
+      }
+      setIsLoading(false);
+    };
     
-    if (foundUser) {
-      const { password, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      return { success: true, user: userWithoutPassword };
+    loadUser();
+  }, []);
+
+  const login = async (email, password) => {
+    try {
+      const response = await apiLogin(email, password);
+      
+      // Store tokens (Note: Use httpOnly cookies in production for better security)
+      localStorage.setItem('accessToken', response.access_token);
+      localStorage.setItem('refreshToken', response.refresh_token);
+      
+      // Transform backend role to frontend format
+      const userData = {
+        ...response.user,
+        role: response.user.role.toLowerCase()
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      
+      return { success: true, user: userData };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: 'Invalid credentials. Please check your email and password.' 
+      };
     }
-    
-    return { success: false, error: 'Invalid credentials' };
   };
 
   const logout = () => {
+    apiLogout();
     setUser(null);
   };
 
@@ -58,6 +66,7 @@ export const AuthProvider = ({ children }) => {
     user,
     login,
     logout,
+    isLoading,
     isAuthenticated: !!user,
     isManager: user?.role === 'manager',
     isAdmin: user?.role === 'admin',
