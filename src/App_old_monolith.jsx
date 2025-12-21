@@ -150,10 +150,9 @@ const ImtiazTradingPlatform = () => {
               {loginError && <div className="bg-red-600/10 border border-red-600/30 rounded-lg p-3 text-red-400 text-sm">{loginError}</div>}
               <button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-semibold">Login</button>
               <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 text-xs text-slate-300 space-y-1">
-                <div><strong>Manager:</strong> manager@imtiaz.com / manager123</div>
-                <div><strong>Admin:</strong> admin@imtiaz.com / admin123</div>
-                <div><strong>Standard Client:</strong> client@example.com / client123</div>
-                <div><strong>Business Client:</strong> business@example.com / business123</div>
+                <div className="font-semibold">DEPRECATED FILE - DO NOT USE</div>
+                <div>This backup file contains insecure mock data and should not be used.</div>
+                <div>Use src/App.jsx with backend authentication instead.</div>
               </div>
             </div>
           )}
@@ -167,13 +166,13 @@ export default ImtiazTradingPlatform;
 const ManagerDashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [branches, setBranches] = useState([
-    { id: 1, name: 'Main Branch', code: 'MAIN-001', status: 'active', clients: 156, balance: 2450000, leverage: 100, commissionPerLot: 5.0, admin: { name: 'Sarah Admin', email: 'admin@imtiaz.com', password: 'admin123', status: 'active' }, transactions: [
+    { id: 1, name: 'Main Branch', code: 'MAIN-001', status: 'active', clients: 156, balance: 2450000, leverage: 100, commissionPerLot: 5.0, admin: { name: 'Sarah Admin', email: 'admin@imtiaz.com', password: '********', status: 'active' }, transactions: [
       { id: 1, date: '2025-11-15 10:30:00', type: 'deposit', amount: 500000, balance: 2000000, description: 'Initial capital deposit', performedBy: 'System' },
       { id: 2, date: '2025-11-16 14:20:00', type: 'commission', amount: 2450, balance: 2002450, description: 'Client trading commissions', performedBy: 'Auto' },
       { id: 3, date: '2025-11-17 09:15:00', type: 'deposit', amount: 300000, balance: 2302450, description: 'Additional funding', performedBy: 'Manager' },
       { id: 4, date: '2025-11-18 16:45:00', type: 'withdrawal', amount: 150000, balance: 2152450, description: 'Branch operational expenses', performedBy: 'Manager' }
     ] },
-    { id: 2, name: 'Downtown Branch', code: 'DT-002', status: 'active', clients: 98, balance: 1890000, leverage: 500, commissionPerLot: 3.5, admin: { name: 'Mike Smith', email: 'mike@imtiaz.com', password: 'admin456', status: 'active' }, transactions: [
+    { id: 2, name: 'Downtown Branch', code: 'DT-002', status: 'active', clients: 98, balance: 1890000, leverage: 500, commissionPerLot: 3.5, admin: { name: 'Mike Smith', email: 'mike@imtiaz.com', password: '********', status: 'active' }, transactions: [
       { id: 1, date: '2025-11-14 11:00:00', type: 'deposit', amount: 800000, balance: 800000, description: 'Branch opening capital', performedBy: 'System' },
       { id: 2, date: '2025-11-16 13:30:00', type: 'commission', amount: 1890, balance: 801890, description: 'Trading commissions collected', performedBy: 'Auto' },
       { id: 3, date: '2025-11-17 10:00:00', type: 'deposit', amount: 500000, balance: 1301890, description: 'Client deposits', performedBy: 'Admin' }
@@ -1737,13 +1736,13 @@ const AdminDashboard = ({ user, branch, onLogout }) => {
     { 
       id: 1, name: 'John Smith', email: 'john@example.com', account: 'ACC-10001', 
       balance: 50000, equity: 52500, freeMargin: 47500, marginLevel: 1050, usedMargin: 5000,
-      status: 'active', password: 'client123', accountType: 'standard',
+      status: 'active', password: '********', accountType: 'standard',
       openPositions: 3, totalProfit: 2500, todayTrades: 5, lastActive: '2024-11-19 14:30'
     },
     { 
       id: 2, name: 'Sarah Johnson', email: 'sarah@example.com', account: 'ACC-10002', 
       balance: 75000, equity: 76850, freeMargin: 68350, marginLevel: 902, usedMargin: 8500,
-      status: 'active', password: 'client456', accountType: 'business',
+      status: 'active', password: '********', accountType: 'business',
       openPositions: 5, totalProfit: 1850, todayTrades: 12, lastActive: '2024-11-19 15:45'
     }
   ]);

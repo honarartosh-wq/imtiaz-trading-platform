@@ -88,10 +88,9 @@ const ImtiazTradingPlatform = () => {
               {loginError && <div className="bg-red-600/10 border border-red-600/30 rounded-lg p-3 text-red-400 text-sm">{loginError}</div>}
               <button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-semibold">Login</button>
               <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 text-xs text-slate-300 space-y-1">
-                <div><strong>Manager:</strong> manager@imtiaz.com / manager123</div>
-                <div><strong>Admin:</strong> admin@imtiaz.com / admin123</div>
-                <div><strong>Standard Client:</strong> client@example.com / client123</div>
-                <div><strong>Business Client:</strong> business@example.com / business123</div>
+                <div className="font-semibold">DEPRECATED FILE - DO NOT USE</div>
+                <div>This backup file contains insecure mock data and should not be used.</div>
+                <div>Use src/App.jsx with backend authentication instead.</div>
               </div>
             </div>
           ) : (
