@@ -1,13 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from datetime import datetime
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from typing import Optional
+import os
+import uuid
+import shutil
+from pathlib import Path
 from app.database import get_db
 from app.schemas.user import UserCreate, UserLogin, UserResponse, Token
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, KYCStatus, AccountType
 from app.models.branch import Branch
 from app.models.account import Account
+from app.models.kyc_document import KYCDocument, DocumentType, DocumentStatus
 from app.middleware.auth import get_current_user
 from app.utils.security import (
     verify_password,
@@ -22,42 +28,122 @@ logger = get_logger(__name__)
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+# KYC file upload directory
+KYC_UPLOAD_DIR = Path("kyc_uploads")
+KYC_UPLOAD_DIR.mkdir(exist_ok=True)
+
+# Allowed file types
+ALLOWED_MIME_TYPES = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "application/pdf"
+]
+
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+async def save_kyc_document(file: UploadFile, user_id: int, doc_type: DocumentType) -> str:
+    """Save uploaded KYC document and return file path."""
+    # Validate file type
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file type. Allowed types: JPG, PNG, PDF"
+        )
+
+    # Read file content to check size
+    content = await file.read()
+    file_size = len(content)
+
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File size exceeds maximum allowed size of 5MB"
+        )
+
+    # Generate unique filename
+    file_extension = Path(file.filename).suffix
+    unique_filename = f"{user_id}_{doc_type.value}_{uuid.uuid4()}{file_extension}"
+    file_path = KYC_UPLOAD_DIR / unique_filename
+
+    # Save file
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    return str(file_path)
+
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/hour")  # Limit to 5 registration attempts per hour
-async def register(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user (client). Rate limited to 5 attempts per hour."""
+async def register(
+    request: Request,
+    name: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    phone: Optional[str] = Form(None),
+    referral_code: str = Form(...),
+    account_type: str = Form(...),
+    id_document: UploadFile = File(...),
+    proof_of_address: UploadFile = File(...),
+    business_document: Optional[UploadFile] = File(None),
+    tax_document: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
+    """Register a new client with KYC documents. Rate limited to 5 attempts per hour."""
+
+    # Validate password
+    if len(password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters long"
+        )
 
     # Check if email already exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
-        log_security_event("registration", user_email=user_data.email, success=False, details="Email already registered")
+        log_security_event("registration", user_email=email, success=False, details="Email already registered")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
 
+    # Validate account type
+    try:
+        account_type_enum = AccountType(account_type)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid account type"
+        )
+
+    # Validate business documents for business accounts
+    if account_type_enum == AccountType.BUSINESS:
+        if not business_document or not tax_document:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Business registration and tax documents are required for business accounts"
+            )
+
     # Validate referral code and get branch
-    branch = db.query(Branch).filter(Branch.referral_code == user_data.referral_code).first()
+    branch = db.query(Branch).filter(Branch.referral_code == referral_code).first()
     if not branch:
-        log_security_event("registration", user_email=user_data.email, success=False, details="Invalid referral code")
+        log_security_event("registration", user_email=email, success=False, details="Invalid referral code")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid referral code"
         )
 
-    # Generate unique account number with collision detection
+    # Generate unique account number
     max_attempts = 5
     account_number = None
     for attempt in range(max_attempts):
         account_number = generate_account_number()
-        # Check if account number already exists
         existing_account = db.query(Account).filter(Account.account_number == account_number).first()
         if not existing_account:
             break
     else:
-        # If we exhausted all attempts, raise an error
-        log_security_event("registration", user_email=user_data.email, success=False,
+        log_security_event("registration", user_email=email, success=False,
                           details="Failed to generate unique account number")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -65,25 +151,92 @@ async def register(request: Request, user_data: UserCreate, db: Session = Depend
         )
 
     try:
-        # Create user
+        # Create user (inactive until KYC approved)
         new_user = User(
-            email=user_data.email,
-            hashed_password=get_password_hash(user_data.password),
-            name=user_data.name,
-            phone=user_data.phone,
+            email=email,
+            hashed_password=get_password_hash(password),
+            name=name,
+            phone=phone,
             role=UserRole.CLIENT,
-            account_type=user_data.account_type,
+            account_type=account_type_enum,
             account_number=account_number,
             branch_id=branch.id,
-            referral_code=user_data.referral_code,
-            is_active=True,
-            is_verified=False
+            referral_code=referral_code,
+            is_active=False,  # Inactive until KYC approved
+            is_verified=False,
+            kyc_status=KYCStatus.PENDING
         )
 
         db.add(new_user)
-        db.flush()  # Get the user ID without committing
+        db.flush()  # Get user ID
 
-        # Create account for the user
+        # Save KYC documents
+        try:
+            # Save ID document
+            id_doc_path = await save_kyc_document(id_document, new_user.id, DocumentType.ID_DOCUMENT)
+            kyc_id_doc = KYCDocument(
+                user_id=new_user.id,
+                document_type=DocumentType.ID_DOCUMENT,
+                file_path=id_doc_path,
+                original_filename=id_document.filename,
+                file_size=id_document.size or 0,
+                mime_type=id_document.content_type,
+                status=DocumentStatus.PENDING
+            )
+            db.add(kyc_id_doc)
+
+            # Save proof of address
+            poa_path = await save_kyc_document(proof_of_address, new_user.id, DocumentType.PROOF_OF_ADDRESS)
+            kyc_poa = KYCDocument(
+                user_id=new_user.id,
+                document_type=DocumentType.PROOF_OF_ADDRESS,
+                file_path=poa_path,
+                original_filename=proof_of_address.filename,
+                file_size=proof_of_address.size or 0,
+                mime_type=proof_of_address.content_type,
+                status=DocumentStatus.PENDING
+            )
+            db.add(kyc_poa)
+
+            # Save business documents if business account
+            if account_type_enum == AccountType.BUSINESS:
+                # Business document
+                bus_doc_path = await save_kyc_document(business_document, new_user.id, DocumentType.BUSINESS_DOCUMENT)
+                kyc_bus_doc = KYCDocument(
+                    user_id=new_user.id,
+                    document_type=DocumentType.BUSINESS_DOCUMENT,
+                    file_path=bus_doc_path,
+                    original_filename=business_document.filename,
+                    file_size=business_document.size or 0,
+                    mime_type=business_document.content_type,
+                    status=DocumentStatus.PENDING
+                )
+                db.add(kyc_bus_doc)
+
+                # Tax document
+                tax_doc_path = await save_kyc_document(tax_document, new_user.id, DocumentType.TAX_DOCUMENT)
+                kyc_tax_doc = KYCDocument(
+                    user_id=new_user.id,
+                    document_type=DocumentType.TAX_DOCUMENT,
+                    file_path=tax_doc_path,
+                    original_filename=tax_document.filename,
+                    file_size=tax_document.size or 0,
+                    mime_type=tax_document.content_type,
+                    status=DocumentStatus.PENDING
+                )
+                db.add(kyc_tax_doc)
+
+        except HTTPException:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to save KYC documents for {email}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save KYC documents. Please try again."
+            )
+
+        # Create account for the user (created but inactive)
         account = Account(
             user_id=new_user.id,
             account_number=account_number,
@@ -94,20 +247,23 @@ async def register(request: Request, user_data: UserCreate, db: Session = Depend
         )
 
         db.add(account)
-        db.commit()  # Commit both user and account together
+        db.commit()
         db.refresh(new_user)
 
         # Log successful registration
         log_security_event("registration", user_email=new_user.email, user_id=new_user.id, success=True,
-                          details=f"Account created: {account_number}")
-        logger.info(f"New user registered: {new_user.email} (ID: {new_user.id})")
+                          details=f"Account created with KYC pending: {account_number}")
+        logger.info(f"New user registered with KYC: {new_user.email} (ID: {new_user.id})")
 
         return new_user
 
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
-        logger.error(f"Registration failed for {user_data.email}: {str(e)}")
-        log_security_event("registration", user_email=user_data.email, success=False,
+        logger.error(f"Registration failed for {email}: {str(e)}")
+        log_security_event("registration", user_email=email, success=False,
                           details=f"Database error: {type(e).__name__}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -137,6 +293,27 @@ async def login(request: Request, credentials: UserLogin, db: Session = Depends(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password"
             )
+
+        # Check KYC status for clients
+        if user.role == UserRole.CLIENT:
+            if user.kyc_status == KYCStatus.PENDING:
+                log_security_event("login", user_email=credentials.email, user_id=user.id, success=False, details="KYC pending")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Your KYC documents are pending approval. Please wait for verification."
+                )
+            elif user.kyc_status == KYCStatus.REJECTED:
+                log_security_event("login", user_email=credentials.email, user_id=user.id, success=False, details="KYC rejected")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Your KYC was rejected. Reason: {user.kyc_rejection_reason or 'Please contact support.'}"
+                )
+            elif user.kyc_status != KYCStatus.APPROVED:
+                log_security_event("login", user_email=credentials.email, user_id=user.id, success=False, details="KYC not approved")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Your account is not activated. Please complete KYC verification."
+                )
 
         # Check if user is active
         if not user.is_active:

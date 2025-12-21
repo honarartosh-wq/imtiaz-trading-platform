@@ -16,6 +16,14 @@ class AccountType(str, enum.Enum):
     BUSINESS = "business"
 
 
+class KYCStatus(str, enum.Enum):
+    PENDING = "pending"
+    UNDER_REVIEW = "under_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    RESUBMIT_REQUIRED = "resubmit_required"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -27,8 +35,14 @@ class User(Base):
     role = Column(SQLEnum(UserRole), nullable=False)
     account_type = Column(SQLEnum(AccountType), nullable=True)  # Only for clients
     account_number = Column(String, unique=True, nullable=True)  # Only for clients
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=False)  # Inactive until KYC approved
     is_verified = Column(Boolean, default=False)
+
+    # KYC fields
+    kyc_status = Column(SQLEnum(KYCStatus), default=KYCStatus.PENDING, nullable=True)
+    kyc_approved_at = Column(DateTime(timezone=True), nullable=True)
+    kyc_approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    kyc_rejection_reason = Column(String, nullable=True)
 
     # Branch relationship (for admins and clients)
     branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
@@ -46,6 +60,7 @@ class User(Base):
     accounts = relationship("Account", back_populates="user", cascade="all, delete-orphan")
     transactions = relationship("Transaction", foreign_keys="Transaction.user_id", back_populates="user", cascade="all, delete-orphan")
     trades = relationship("Trade", back_populates="user", cascade="all, delete-orphan")
+    kyc_documents = relationship("KYCDocument", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User {self.email} - {self.role}>"
