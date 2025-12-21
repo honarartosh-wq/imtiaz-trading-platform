@@ -12,6 +12,22 @@ const api = axios.create({
   timeout: 10000, // 10 second timeout
 });
 
+// ==================== SECURITY WARNING ====================
+// IMPORTANT: This implementation uses localStorage for token storage.
+// This is acceptable for development but has security limitations:
+//
+// 1. Vulnerable to XSS attacks - malicious scripts can access localStorage
+// 2. Tokens are accessible via JavaScript
+//
+// PRODUCTION RECOMMENDATIONS:
+// - Use httpOnly cookies for token storage (preferred)
+// - Implement Content Security Policy (CSP) headers
+// - Use Secure and SameSite cookie flags
+// - Consider using a secure backend session management
+//
+// TODO: Migrate to httpOnly cookies before production deployment
+// ==========================================================
+
 // Request interceptor - Add JWT token to requests
 api.interceptors.request.use(
   (config) => {
@@ -136,6 +152,8 @@ export const refreshAccessToken = async (refreshToken) => {
 
 /**
  * Logout user (client-side)
+ * Note: Clears tokens from localStorage
+ * In production with httpOnly cookies, this should call a backend logout endpoint
  */
 export const logout = () => {
   localStorage.removeItem('accessToken');

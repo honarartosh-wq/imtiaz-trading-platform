@@ -8,11 +8,23 @@ Use this checklist before releasing the Imtiaz Trading Platform to production.
 
 - [ ] Update `.env.production` with production API URL
 - [ ] Update `backend/.env` with production settings
-- [ ] Set secure `SECRET_KEY` in backend .env
+- [ ] Set secure `SECRET_KEY` in backend .env (min 32 characters)
+  - Generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- [ ] Set strong `ADMIN_PASSWORD` (min 12 characters with mixed case, numbers, special chars)
+  - Generate with: `python -c "import secrets; import string; chars = string.ascii_letters + string.digits + string.punctuation; print(''.join(secrets.choice(chars) for _ in range(16)))"`
+- [ ] Set production `ADMIN_EMAIL`
 - [ ] Configure production database (PostgreSQL recommended)
-- [ ] Set up proper CORS origins
+- [ ] Configure database pool settings:
+  - [ ] Set `DB_POOL_SIZE` (default: 20, adjust based on load)
+  - [ ] Set `DB_MAX_OVERFLOW` (default: 10)
+  - [ ] Set `DB_POOL_TIMEOUT` (default: 30)
+  - [ ] Set `DB_POOL_RECYCLE` (default: 3600)
+- [ ] Set up proper CORS origins (production frontend URLs only)
 - [ ] Configure email/SMTP settings (if applicable)
 - [ ] Set up error tracking (Sentry, etc.) - optional
+- [ ] Verify all required environment variables are set
+- [ ] Enable `DEBUG=false` in production
+- [ ] Configure `REDIS_URL` for production caching
 
 ### 2. Security
 
@@ -20,10 +32,23 @@ Use this checklist before releasing the Imtiaz Trading Platform to production.
 - [ ] HTTPS is enforced on production server
 - [ ] Sensitive data is not logged
 - [ ] Environment variables are not committed to Git
+- [ ] `.env` files are in `.gitignore`
 - [ ] API rate limiting is configured
 - [ ] SQL injection prevention is tested
 - [ ] XSS protection is verified
 - [ ] CSRF tokens are implemented where needed
+- [ ] No hardcoded credentials in frontend code
+- [ ] No hardcoded credentials in backend code
+- [ ] Tokens stored in httpOnly cookies (not localStorage)
+- [ ] Content Security Policy (CSP) headers configured
+- [ ] Secure cookie flags set (Secure, HttpOnly, SameSite)
+- [ ] Password hashing uses bcrypt with proper salt rounds
+- [ ] JWT tokens have appropriate expiration times
+- [ ] Refresh tokens are properly rotated
+- [ ] Input validation on all API endpoints
+- [ ] File upload validation and size limits
+- [ ] Database connection strings use SSL
+- [ ] Secrets are stored in secure vault (not .env in production)
 
 ### 3. Code Quality
 

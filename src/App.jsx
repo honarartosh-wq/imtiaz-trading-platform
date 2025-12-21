@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ManagerDashboard from './components/dashboards/ManagerDashboard';
 import AdminDashboard from './components/dashboards/AdminDashboard';
 import ClientDashboard from './components/dashboards/ClientDashboard';
+import { login, register, validateReferralCode, getErrorMessage } from './services/api';
 
 // ==================== MAIN APP ====================
 const ImtiazTradingPlatform = () => {
@@ -19,53 +20,100 @@ const ImtiazTradingPlatform = () => {
   });
   const [showRegister, setShowRegister] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Mock branch data (would be fetched from backend in production)
-  const mockBranches = {
-    'branch_001': { id: 'branch_001', name: 'Main Branch', code: 'MAIN-001', logo: '' },
-    'branch_002': { id: 'branch_002', name: 'Downtown Branch', code: 'DT-002', logo: '' }
-  };
-
-  // WARNING: Demo credentials for testing only - NEVER store credentials in frontend code in production
-  // In production, use proper authentication with backend API and secure password handling
-  const mockUsers = {
-    'manager@imtiaz.com': { password: 'manager123', type: 'manager', id: 'mgr_001', name: 'John Manager', email: 'manager@imtiaz.com' },
-    'admin@imtiaz.com': { password: 'admin123', type: 'admin', id: 'admin_001', name: 'Sarah Admin', email: 'admin@imtiaz.com', branchId: 'branch_001', branchName: 'Main Branch', branchCode: 'MAIN-001', referralCode: 'MAIN001-REF' },
-    'client@example.com': { password: 'client123', type: 'client', id: 'client_001', name: 'John Smith', email: 'client@example.com', accountNumber: 'ACC-10001', branchId: 'branch_001', accountType: 'standard' },
-    'business@example.com': { password: 'business123', type: 'client', id: 'client_002', name: 'Tech Corp', email: 'business@example.com', accountNumber: 'ACC-10002', branchId: 'branch_001', accountType: 'business' }
-  };
-
-  const branchReferralCodes = {
-    'MAIN001-REF': { branchId: 'branch_001', branchName: 'Main Branch', branchCode: 'MAIN-001' },
-    'DT002-REF': { branchId: 'branch_002', branchName: 'Downtown Branch', branchCode: 'DT-002' },
-    'WEST003-REF': { branchId: 'branch_003', branchName: 'West Branch', branchCode: 'WEST-003' }
-  };
-
-  const handleLogin = () => {
+  // Handle user login through backend API
+  const handleLogin = async () => {
     setLoginError('');
-    const user = mockUsers[loginForm.email];
-    if (!user) { setLoginError('User not found'); return; }
-    if (user.password !== loginForm.password) { setLoginError('Invalid password'); return; }
-    setCurrentUser(user);
+    setIsLoading(true);
+    
+    try {
+      const response = await login(loginForm.email, loginForm.password);
+      
+      // Store tokens in localStorage (Note: Use httpOnly cookies in production for better security)
+      localStorage.setItem('accessToken', response.access_token);
+      localStorage.setItem('refreshToken', response.refresh_token);
+      
+      // Transform backend role to frontend type format
+      const userData = {
+        ...response.user,
+        type: response.user.role.toLowerCase()
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userData));
+      setCurrentUser(userData);
+    } catch (error) {
+      // Show generic error message for security
+      setLoginError('Invalid email or password. Please try again.');
+      console.error('Login error:', getErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleRegister = () => {
-    if (registerForm.password !== registerForm.confirmPassword) { alert('Passwords do not match!'); return; }
-    if (!registerForm.referralCode) { alert('Branch referral code is required!'); return; }
-    const branchInfo = branchReferralCodes[registerForm.referralCode];
-    if (!branchInfo) { alert('Invalid referral code!'); return; }
+  // Handle user registration through backend API
+  const handleRegister = async () => {
+    if (registerForm.password !== registerForm.confirmPassword) {
+      alert('Passwords do not match!');
+      return;
+    }
     
-    alert(`✅ Account Created!\n\nName: ${registerForm.name}\nEmail: ${registerForm.email}\nAccount: ACC-${Math.floor(10000 + Math.random() * 90000)}\nBranch: ${branchInfo.branchName}`);
-    setRegisterForm({ name: '', email: '', password: '', confirmPassword: '', referralCode: '', phone: '' });
-    setShowRegister(false);
+    if (!registerForm.referralCode) {
+      alert('Branch referral code is required!');
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Validate referral code first
+      await validateReferralCode(registerForm.referralCode);
+      
+      // Register user through backend API
+      const response = await register({
+        name: registerForm.name,
+        email: registerForm.email,
+        password: registerForm.password,
+        phone: registerForm.phone,
+        referralCode: registerForm.referralCode,
+        accountType: registerForm.accountType === 'business' ? 'business' : 'standard'
+      });
+      
+      alert(`✅ Account Created Successfully!\n\nPlease login with your credentials to access your account.`);
+      
+      // Reset form and switch to login
+      setRegisterForm({ 
+        name: '', 
+        email: '', 
+        password: '', 
+        confirmPassword: '', 
+        referralCode: '', 
+        phone: '', 
+        accountMode: 'demo',
+        accountType: 'individual'
+      });
+      setShowRegister(false);
+    } catch (error) {
+      alert(`Registration failed: ${getErrorMessage(error)}`);
+      console.error('Registration error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    setCurrentUser(null);
   };
 
   if (currentUser) {
-    const userBranch = currentUser.branchId ? mockBranches[currentUser.branchId] : null;
     switch (currentUser.type) {
-      case 'manager': return <ManagerDashboard user={currentUser} onLogout={() => setCurrentUser(null)} />;
-      case 'admin': return <AdminDashboard user={currentUser} branch={userBranch} onLogout={() => setCurrentUser(null)} />;
-      case 'client': return <ClientDashboard user={currentUser} branch={userBranch} onLogout={() => setCurrentUser(null)} />;
+      case 'manager': return <ManagerDashboard user={currentUser} onLogout={handleLogout} />;
+      case 'admin': return <AdminDashboard user={currentUser} onLogout={handleLogout} />;
+      case 'client': return <ClientDashboard user={currentUser} onLogout={handleLogout} />;
       default: return null;
     }
   }
@@ -139,24 +187,25 @@ const ImtiazTradingPlatform = () => {
 
               <input type="password" placeholder="Password" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={registerForm.password} onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })} />
               <input type="password" placeholder="Confirm Password" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={registerForm.confirmPassword} onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })} />
-              <button onClick={handleRegister} className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-semibold">Create Account</button>
+              <button onClick={handleRegister} disabled={isLoading} className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                {isLoading ? 'Creating Account...' : 'Create Account'}
+              </button>
               <div className="bg-purple-600/10 border border-purple-600/30 rounded-lg p-4 text-xs text-slate-300">
-                <div className="font-semibold mb-1">Available Branch Codes:</div>
-                <div><strong>MAIN001-REF</strong> - Main Branch</div>
-                <div><strong>DT002-REF</strong> - Downtown Branch</div>
+                <div className="font-semibold mb-1">Branch Referral Code Required</div>
+                <div>Contact your branch administrator for a valid referral code</div>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
               <input type="email" placeholder="Email" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={loginForm.email} onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })} />
-              <input type="password" placeholder="Password" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
+              <input type="password" placeholder="Password" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} />
               {loginError && <div className="bg-red-600/10 border border-red-600/30 rounded-lg p-3 text-red-400 text-sm">{loginError}</div>}
-              <button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-semibold">Login</button>
+              <button onClick={handleLogin} disabled={isLoading} className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                {isLoading ? 'Logging in...' : 'Login'}
+              </button>
               <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 text-xs text-slate-300 space-y-1">
-                <div><strong>Manager:</strong> manager@imtiaz.com / manager123</div>
-                <div><strong>Admin:</strong> admin@imtiaz.com / admin123</div>
-                <div><strong>Standard Client:</strong> client@example.com / client123</div>
-                <div><strong>Business Client:</strong> business@example.com / business123</div>
+                <div className="font-semibold">Backend authentication required</div>
+                <div>Please ensure the backend server is running and accessible</div>
               </div>
             </div>
           )}

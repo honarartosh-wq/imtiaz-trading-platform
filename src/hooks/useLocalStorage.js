@@ -1,5 +1,24 @@
 import { useState, useEffect } from 'react';
 
+// ==================== SECURITY WARNING ====================
+// IMPORTANT: localStorage is vulnerable to XSS attacks
+// 
+// Use this hook ONLY for:
+// - Non-sensitive user preferences (theme, language, etc.)
+// - Public data that doesn't require security
+//
+// DO NOT USE for:
+// - Authentication tokens (use httpOnly cookies in production)
+// - Sensitive user data (PII, financial information)
+// - Session data that requires security
+//
+// PRODUCTION RECOMMENDATIONS:
+// - Store sensitive tokens in httpOnly cookies
+// - Implement proper Content Security Policy (CSP)
+// - Use secure backend session management
+// - Encrypt sensitive data if localStorage is necessary
+// ==========================================================
+
 /**
  * Custom hook for localStorage with state sync
  * @param {string} key - localStorage key

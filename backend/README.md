@@ -65,11 +65,43 @@ cp .env.example .env
 # Edit .env with your configuration
 ```
 
-Required environment variables:
+#### Required Environment Variables
+
+**Critical Security Settings:**
+- `SECRET_KEY`: JWT secret key for signing tokens
+  - **MUST be at least 32 characters**
+  - Generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+  - Never reuse or share this key
+  
+- `ADMIN_EMAIL`: Email for the initial admin account
+  - Used during database initialization
+  
+- `ADMIN_PASSWORD`: Password for the initial admin account
+  - **MUST be at least 8 characters** (12+ recommended)
+  - Should include uppercase, lowercase, numbers, and special characters
+  - Generate strong password with: `python -c "import secrets; import string; chars = string.ascii_letters + string.digits + string.punctuation; print(''.join(secrets.choice(chars) for _ in range(16)))"`
+
+**Database Configuration:**
 - `DATABASE_URL`: PostgreSQL connection string
-- `SECRET_KEY`: JWT secret key (generate with: `openssl rand -hex 32`)
-- `REDIS_URL`: Redis connection string
-- MetaTrader credentials (if using MT integration)
+  - Format: `postgresql://user:password@host:port/database`
+  
+- `DB_POOL_SIZE`: Number of connections to maintain (default: 20)
+- `DB_MAX_OVERFLOW`: Maximum overflow connections (default: 10)
+- `DB_POOL_TIMEOUT`: Connection timeout in seconds (default: 30)
+- `DB_POOL_RECYCLE`: Time before recycling connections in seconds (default: 3600)
+
+**Optional Settings:**
+- `REDIS_URL`: Redis connection string (recommended for production)
+- `CORS_ORIGINS`: Comma-separated list of allowed frontend URLs
+- `DEBUG`: Set to `false` in production
+- MetaTrader credentials (if using MT5 integration)
+
+**Security Best Practices:**
+1. Never commit the `.env` file to version control
+2. Use different credentials for development and production
+3. Rotate secrets regularly (at least every 90 days)
+4. Use strong, unique passwords for all accounts
+5. Enable DEBUG=false in production
 
 ### 5. Run Database Migrations
 

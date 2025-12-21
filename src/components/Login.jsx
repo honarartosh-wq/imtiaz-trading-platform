@@ -144,6 +144,11 @@ const Login = () => {
                           err.response?.data?.message ||
                           'Registration failed. Please try again.';
       setError(errorMessage);
+      
+      // Log failed KYC upload attempts for debugging
+      if (err.response?.status === 400 && errorMessage.includes('File')) {
+        console.error('KYC file validation failed:', errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -167,17 +172,8 @@ const Login = () => {
     setRegisterForm({ ...registerForm, [fieldName]: file });
   };
 
-  const quickLogin = (role) => {
-    const credentials = {
-      manager: { email: 'manager@imtiaz.com', password: 'manager123' },
-      admin: { email: 'admin@imtiaz.com', password: 'admin123' },
-      client: { email: 'client@example.com', password: 'client123' }
-    };
-    
-    const cred = credentials[role];
-    setEmail(cred.email);
-    setPassword(cred.password);
-  };
+  // REMOVED: Quick login function with hardcoded credentials
+  // In production, all logins must use proper authentication through backend API
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center px-4 py-8">
@@ -511,29 +507,14 @@ const Login = () => {
             </form>
           )}
 
-          {/* Quick Login (Demo) - Only show in login mode */}
+          {/* Quick Login removed for security - Use proper credentials */}
           {!isRegisterMode && (
             <div className="mt-6">
-              <p className="text-gray-400 text-sm text-center mb-3">Quick Login (Demo)</p>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => quickLogin('manager')}
-                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs py-2 rounded transition-colors"
-                >
-                  Manager
-                </button>
-                <button
-                  onClick={() => quickLogin('admin')}
-                  className="bg-green-600 hover:bg-green-700 text-white text-xs py-2 rounded transition-colors"
-                >
-                  Admin
-                </button>
-                <button
-                  onClick={() => quickLogin('client')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 rounded transition-colors"
-                >
-                  Client
-                </button>
+              <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-4">
+                <p className="text-gray-300 text-sm text-center">
+                  <strong>Backend Authentication Required</strong><br/>
+                  Please ensure the backend server is running and use valid credentials.
+                </p>
               </div>
             </div>
           )}
